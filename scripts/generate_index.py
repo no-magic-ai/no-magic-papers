@@ -17,7 +17,7 @@ STATUSES = set(
 )
 LESSON_STATUSES = {"none", "planned", "drafted", "published", "null"}
 REQUIRED_FIELDS = tuple(
-    "slug title authors venue year url discovered_via discovered_date status "
+    "slug title authors venue year arxiv_id doi url discovered_via discovered_date status "
     "themes tags routing implementations lesson dependencies_on_other_papers".split()
 )
 REQUIRED_SECTIONS = (
