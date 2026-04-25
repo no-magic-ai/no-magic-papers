@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  slug-namespace:
+    name: slug namespace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: reject paper slugs with script prefix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          bad = sorted(path.as_posix() for path in Path("papers").glob("micro*.md"))
+          if bad:
+              raise SystemExit("paper cards must not use micro* slugs: " + ", ".join(bad))
+          PY
+
+  index-freshness:
+    name: index freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: verify generated index
+        run: python scripts/generate_index.py --check
+
+  frontmatter-schema:
+    name: frontmatter schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: validate paper cards
+        run: python scripts/generate_index.py --validate
