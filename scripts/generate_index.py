@@ -137,7 +137,12 @@ def parse_card(path: Path) -> dict[str, object]:
 
 
 def load_cards(root: Path) -> list[dict[str, object]]:
-    return [parse_card(path) for path in sorted((root / "papers").glob("*.md"))]
+    cards = []
+    for path in sorted((root / "papers").glob("*.md")):
+        card = parse_card(path)
+        card["path"] = path.relative_to(root)
+        cards.append(card)
+    return cards
 
 
 def render(cards: list[dict[str, object]]) -> str:
