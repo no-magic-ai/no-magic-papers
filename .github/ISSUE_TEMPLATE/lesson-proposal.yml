@@ -1,0 +1,34 @@
+name: Lesson proposal
+description: Propose a prose lesson for an existing paper card.
+title: "[Lesson] "
+labels:
+  - lesson
+body:
+  - type: input
+    id: paper_slug
+    attributes:
+      label: Paper slug
+      description: Must match an existing paper card slug.
+    validations:
+      required: true
+  - type: textarea
+    id: why_lesson
+    attributes:
+      label: Why a lesson adds value
+      description: Explain what prose can teach beyond code comments and the paper card.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_sections
+    attributes:
+      label: Proposed sections
+      description: Use paper summary, intuition, code walkthrough, and exercises unless there is a concrete reason to differ.
+    validations:
+      required: true
+  - type: input
+    id: target_audience
+    attributes:
+      label: Target audience
+      description: Name the learner profile this lesson serves.
+    validations:
+      required: true
