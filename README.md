@@ -2,7 +2,7 @@
 
 Paper cards in `papers/`, optional prose lessons in `lessons/`, paper-canonical slugs.
 
-Status: `v0.1-scaffold`
+Status: `v0.1`
 
 `no-magic-papers` is the primary-source prose layer for the `no-magic-ai` organization. It stores concise paper cards, optional lessons, and a generated index without coupling itself to implementation repositories.
 
