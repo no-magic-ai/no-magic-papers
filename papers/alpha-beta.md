@@ -72,14 +72,13 @@ Minimax itself dates to von Neumann's game theory and to Shannon's 1950 chess pa
 
 ## Implementation notes
 
-A pedagogical script can use Tic-Tac-Toe or Connect-Four with depth-limited search. The minimal version is the negamax formulation: a single recursive function with sign flips at the recursive call. Critical pitfalls: the alpha and beta arguments must be passed by value, not mutated; the cutoff condition is strict inequality (α ≥ β), not equality alone. Side-by-side compare plain minimax with alpha-beta on the same game and print node counts; the ratio at depth 4 or 5 already shows the exponential gap. A useful extension is move-ordering: try captures-first or last-best-move-first and show how node count drops further toward the b^(d/2) limit. Transposition tables and iterative deepening are typically out of scope for a single-file pedagogical version.
+A pedagogical script can use Tic-Tac-Toe or Connect-Four with depth-limited search. The minimal version is the negamax formulation: a single recursive function with sign flips at the recursive call. Pitfalls: alpha and beta must be passed by value, not mutated; the cutoff is α ≥ β. Compare plain minimax with alpha-beta on the same game and print node counts; the ratio at depth 4 or 5 shows the exponential gap. A useful extension is move-ordering — captures-first or last-best-move-first — to push toward the b^(d/2) limit. Transposition tables and iterative deepening are out of scope for a single-file version.
 
 ## Open questions
 
-The paper assumes a static evaluation function exists at the depth horizon. Where it does not — Go and many imperfect-information games — alpha-beta degrades, motivating the Monte-Carlo line of work that culminates in UCT and AlphaGo. Even in chess, the modern shift to neural evaluation has changed how alpha-beta is tuned (different ordering heuristics, narrower aspiration windows), but the asymptotic analysis still applies.
+The paper assumes a static evaluation function exists at the depth horizon. Where it does not — Go and many imperfect-information games — alpha-beta degrades, motivating the Monte-Carlo line that culminates in UCT and AlphaGo.
 
 ## Further reading
 
 - Shannon (1950) — "Programming a Computer for Playing Chess", the founding minimax paper.
-- Pearl (1980) — "Asymptotic Properties of Minimax Trees and Game-Searching Procedures", complementary analysis.
 - Kocsis & Szepesvári (2006) — UCT, the Monte-Carlo alternative when no static evaluator exists.
