@@ -1,0 +1,60 @@
+name: Paper triage
+description: Suggest a paper for no-magic-papers intake.
+title: "[Triage] "
+labels:
+  - triage
+body:
+  - type: input
+    id: paper_title
+    attributes:
+      label: Paper title
+      description: Use the title from the paper itself.
+    validations:
+      required: true
+  - type: input
+    id: authors
+    attributes:
+      label: Authors
+      description: List the first author and any relevant collaborators.
+    validations:
+      required: true
+  - type: input
+    id: arxiv_id
+    attributes:
+      label: arXiv ID or DOI
+      description: Prefer arXiv when available.
+    validations:
+      required: true
+  - type: textarea
+    id: why_relevant
+    attributes:
+      label: Why relevant
+      description: Explain why this paper belongs in the no-magic-ai ecosystem.
+    validations:
+      required: true
+  - type: input
+    id: tentative_paper_slug
+    attributes:
+      label: Tentative paper slug
+      description: Paper-canonical, lowercase, hyphen-separated, no micro prefix.
+    validations:
+      required: true
+  - type: input
+    id: suggested_themes
+    attributes:
+      label: Suggested themes
+      description: Use themes from THEMES.md.
+    validations:
+      required: true
+  - type: dropdown
+    id: suggested_tier
+    attributes:
+      label: Suggested target tier
+      options:
+        - 01-foundations
+        - 02-alignment
+        - 03-systems
+        - 04-agents
+        - n/a
+    validations:
+      required: true
