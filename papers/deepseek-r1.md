@@ -32,8 +32,7 @@ implementations: []
 lesson:
   path: no-magic-papers/lessons/deepseek-r1.md
   status: drafted
-dependencies_on_other_papers:
-  - slug: grpo
+dependencies_on_other_papers: []
 ---
 
 ## TL;DR
