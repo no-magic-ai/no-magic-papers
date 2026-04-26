@@ -55,15 +55,11 @@ The paper introduces speculative decoding. A small draft model M_q proposes K ca
 
 ## Method summary
 
-- Pick a draft model M_q (small, fast) and a target model M_p (large, accurate). M_q must share or be compatible with M_p's tokenizer.
-- For each generation step batch:
-  - Generate K candidate tokens from M_q autoregressively given the current prefix.
-  - Run M_p's forward pass on the prefix + K candidates in parallel; this produces target probabilities at all K+1 positions in one pass.
-  - For i = 0 .. K-1, decide: accept candidate_i with probability min(1, P_p(x_i | prefix_i) / P_q(x_i | prefix_i)); reject otherwise.
-  - On the first rejection at position j, sample a fresh token from the residual distribution P_resid(x) ∝ max(0, P_p(x | prefix_j) - P_q(x | prefix_j)); truncate the speculation, append accepted_prefix + residual_sample.
-  - If all K accepted, also append a sample from M_p's distribution at the next position (free, since the forward pass also computed it).
-- Iterate until end of generation. Per outer step, K+1 tokens are generated with one M_p call.
-- Speedup depends on K and on draft acceptance rate; the paper analyzes the optimal K for various model-pair sizes.
+- Pick a draft model M_q (small, fast) and target M_p (large, accurate); both share the tokenizer.
+- Per outer step: generate K candidate tokens from M_q autoregressively; run one M_p forward pass on prefix + K candidates in parallel.
+- For i = 0..K-1, accept candidate_i with probability min(1, P_p(x_i | prefix_i) / P_q(x_i | prefix_i)); on first rejection at position j, sample a fresh token from the residual P_resid ∝ max(0, P_p - P_q) at position j and truncate.
+- If all K accepted, M_p's free extra forward output gives one bonus token at position K.
+- Per outer step: K+1 tokens generated for one M_p call. Speedup depends on K and draft acceptance rate.
 
 ## Key results
 
