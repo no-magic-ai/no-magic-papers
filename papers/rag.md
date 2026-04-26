@@ -82,8 +82,8 @@ RAG combines two lines: dense retrieval (Karpukhin et al. 2020, DPR) and pretrai
 
 ## Implementation notes
 
-A pedagogical script can implement RAG with a tiny corpus (a single book chapter, a small wiki snapshot), an embedding model (a small dense encoder or a hash-based stand-in), and a small seq2seq or autoregressive generator. Minimum viable trainer: index passages by mean-pool of token embeddings; for each query, embed and retrieve top-K by cosine; concatenate and generate. Pitfalls: forgetting to detach the document encoder if not training it (gradient flowing through stale embeddings is wrong); using K too small (retrieval recall drops sharply at K = 1); decoding the RAG-Token marginal naively (the cross-document beam is subtle — easier to demonstrate RAG-Sequence first). Useful diagnostic: log top-K retrieval recall on a held-out QA set; if recall is low the generator cannot recover, and the issue is the retriever, not generation.
+A pedagogical script can implement RAG with a tiny corpus, an embedding model, and a small generator. Minimum viable trainer: index passages by mean-pool of token embeddings; for each query, embed and retrieve top-K by cosine; concatenate and generate. Pitfalls: forgetting to detach the document encoder if not training it; using K too small (retrieval recall drops sharply at K = 1); decoding the RAG-Token marginal naively — easier to demonstrate RAG-Sequence first. Diagnostic: log top-K retrieval recall on a held-out QA set; low recall means the issue is the retriever, not generation.
 
 ## Open questions
 
-The paper does not address fine-grained citation: RAG conditions on retrieved passages but the generated answer does not natively cite which passage supplied which fact. Subsequent work (citation-augmented LLMs, attribution training) targets this gap. RAG also does not handle adversarial or contradictory retrieval results explicitly.
+RAG conditions on retrieved passages but the generated answer does not natively cite which passage supplied which fact. Citation-augmented and attribution-trained variants target this gap.
