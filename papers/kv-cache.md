@@ -63,12 +63,12 @@ The paper makes the KV-cache central to inference analysis. It formalizes how th
 
 ## Method summary
 
-- KV-cache: for each transformer layer, store the keys and values of all previous tokens; per-layer cache size is 2 · num_heads · head_dim · seq_len · sizeof(dtype) per request.
-- Prefill: process the entire prompt in parallel with standard tensor-parallel attention; populate the KV-cache.
-- Decode: per generated token, run attention against the cached K, V (no recomputation) plus the new query.
-- Partitioning analysis: model an inference layer as a graph of weight tensors, KV-cache tensors, and activations; choose a partition that minimizes total memory traffic per generated token under the cluster's interconnect topology.
-- Three regimes: weight stationary (replicate KV-cache, partition weights — best for very small batches where KV-cache fits in memory), activation stationary (partition KV-cache by head, replicate weights — best for medium batches), KV-cache stationary (partition KV-cache across devices in a way that aligns with attention's data flow — best for large batches).
-- Multi-query and grouped-query attention (Shazeer 2019, Ainslie et al. 2023) reduce KV-cache size by sharing keys and values across heads, shifting the regime boundaries.
+- KV-cache: per layer, store K and V of all previous tokens; size 2 · num_heads · head_dim · seq_len · sizeof(dtype) per request.
+- Prefill: process the prompt in parallel with tensor-parallel attention; populate the KV-cache.
+- Decode: per token, attend against cached K, V plus the new query.
+- Partitioning: model the layer as a graph of weights, KV-cache, and activations; pick the partition that minimizes per-token memory traffic.
+- Three regimes by batch size: weight stationary (small batches), activation stationary (medium), KV-cache stationary (large).
+- Multi-query / grouped-query attention shrink the KV-cache and shift regime boundaries.
 
 ## Key results
 
