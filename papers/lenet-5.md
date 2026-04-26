@@ -81,4 +81,4 @@ A pedagogical script can implement LeNet-5-style convolutional and pooling layer
 
 ## Open questions
 
-The paper does not address depth: at 7 layers, LeNet-5 is shallow by modern standards. The degradation problem with depth would not be resolved until ResNet (He et al. 2016). The paper also does not analyze when CNNs lose their advantage; later work shows transformers can match CNNs given enough data, but the data threshold is large.
+LeNet-5 is shallow by modern standards. The depth-degradation problem would not be resolved until ResNet (He et al. 2016).
