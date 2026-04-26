@@ -70,8 +70,8 @@ The SRN is the foundational form of the modern recurrent neural network. It prec
 
 ## Implementation notes
 
-A pedagogical script can implement the Elman SRN from scratch and compare it to a gated GRU on a copy or addition task. Minimum viable cell: parameters W_xh, W_ch, W_hy and biases; forward computes h_t and y_t; backward unrolls T steps and accumulates gradients (the script can use truncated backprop for legibility). Pitfalls: forgetting to detach the previous hidden state when batches are independent (gradient flowing across batch boundaries is a silent bug); using sigmoid throughout the network gives slow training compared with tanh for the hidden state; running a long sequence without gradient clipping can produce exploding gradients. Useful diagnostic: train an SRN on a copy task at lengths 5, 10, 20, 50 — the SRN should fail above ~20 steps as gradients vanish, motivating the gated alternatives.
+A pedagogical script can implement the Elman SRN and compare it with a gated GRU on a copy task. Minimum viable cell: parameters W_xh, W_ch, W_hy and biases; forward computes h_t and y_t; backward unrolls T steps. Pitfalls: forgetting to detach the previous hidden state across independent batches; using sigmoid throughout slows training compared with tanh for the hidden state; long sequences without gradient clipping can explode. Diagnostic: train an SRN at lengths 5, 10, 20, 50 — failure above ~20 motivates gated alternatives.
 
 ## Open questions
 
-The paper does not address the vanishing-gradient problem, which limits the SRN's effective memory to a handful of steps. Subsequent work (LSTM, GRU, attention) addressed this. The cognitive-science framing of "discovering temporal structure" remains influential and motivates much of the interpretability work on recurrent and self-attention models.
+The paper does not address the vanishing-gradient problem, which limits the SRN's effective memory to a handful of steps. Subsequent gated cells (LSTM, GRU) and attention address this.
