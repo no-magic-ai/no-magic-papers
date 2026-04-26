@@ -71,8 +71,8 @@ HNSW supersedes the small-world-graph line (NSW, Malkov et al. 2014) by adding t
 
 ## Implementation notes
 
-A pedagogical script can implement HNSW for a small dataset in pure Python. Minimum viable implementation: a dict from node id to {neighbor lists per layer, max layer}, a greedy-search routine, and an insertion routine that calls greedy search at each layer. The script can also include a brute-force baseline to confirm recall. Pitfalls: forgetting the diverse-neighbor heuristic (using nearest-M produces clusters that degrade graph navigability); using too small ef for queries (recall plummets); reseeding the entry point per query rather than reusing a stable one (search becomes noisy). Useful exercise: time and recall the same query across brute-force, IVF (with k-means coarse quantizer), and HNSW on SIFT-like vectors; the recall-throughput frontier makes the HNSW advantage visible.
+A pedagogical script can implement HNSW in pure Python. Minimum viable: a dict from node id to {neighbor lists per layer, max layer}, a greedy-search routine, and an insertion routine that calls greedy search at each layer. Pitfalls: forgetting the diverse-neighbor heuristic (nearest-M produces clusters that degrade navigability); using too small ef (recall plummets); reseeding the entry point per query (search becomes noisy). Useful exercise: time and recall the same query across brute-force, IVF + PQ, and HNSW on SIFT-like vectors.
 
 ## Open questions
 
-The paper does not optimally tune M and ef for arbitrary datasets; later work (DiskANN, NSG) explores graph-construction variants with better worst-case behavior. Memory is HNSW's main weakness — every node stores M neighbor IDs at every layer it appears in — and is what motivates IVF + PQ for very large collections.
+The paper does not optimally tune M and ef for arbitrary datasets; later work (DiskANN, NSG) explores construction variants. Memory is HNSW's main weakness, motivating IVF + PQ for very large collections.
