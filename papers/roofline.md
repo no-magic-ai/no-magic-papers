@@ -76,4 +76,4 @@ A pedagogical script can compute and plot a roofline for several toy kernels: ma
 
 ## Open questions
 
-The original model assumes a single bandwidth and compute ceiling; modern systems with HBM, NVLink, and accelerator-specific tensor cores need extended versions. The model also conflates achievable peak with sustained peak; for some workloads the difference is large and a more careful empirical-roof measurement is needed.
+The original model assumes a single bandwidth and compute ceiling; modern systems with HBM, NVLink, and accelerator-specific tensor cores need extended versions.
