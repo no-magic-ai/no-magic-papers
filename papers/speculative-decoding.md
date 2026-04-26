@@ -71,8 +71,8 @@ Two contemporaneous papers introduced speculative decoding independently: Leviat
 
 ## Implementation notes
 
-A pedagogical script can implement speculative decoding with two small Transformers — a draft (e.g. 2-layer) and a target (e.g. 6-layer) — on a tiny task. Minimum viable loop: draft K tokens autoregressively; run target on the prefix + draft tokens in one parallel pass; iterate the rejection rule per token; emit accepted tokens and residual sample. Pitfalls: computing the residual distribution by subtraction without clamping at zero (gives negative probabilities); forgetting that the target's forward also yields a free extra token at position K (skip it and you lose the bonus); using a draft with a different tokenizer than the target (the rejection probability becomes meaningless). Useful diagnostic: measure mean accepted-tokens-per-iteration; high values (close to K) mean the draft is too small to disagree, low values mean the draft and target disagree often and the speedup is limited.
+A pedagogical script can implement speculative decoding with two small Transformers — a 2-layer draft and a 6-layer target. Minimum viable loop: draft K tokens autoregressively; run target on prefix + draft in one parallel pass; iterate the rejection rule; emit accepted tokens and residual sample. Pitfalls: computing the residual without clamping at zero (negative probabilities); forgetting the bonus token at position K when all accepted; using mismatched tokenizers (rejection probability becomes meaningless). Diagnostic: measure mean accepted-tokens-per-iteration.
 
 ## Open questions
 
-The paper does not analyze how to choose the draft architecture or training objective; subsequent work proposed many variants. Speculative decoding's interaction with batched serving is also non-trivial — across a batch of requests with different acceptance rates, naive batching can lose the speedup, motivating tree-based and dynamic-batching variants.
+The paper does not address draft-model selection or training. Batched serving with variable acceptance rates is non-trivial and motivates tree-based and dynamic-batching variants.
