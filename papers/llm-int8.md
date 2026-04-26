@@ -78,4 +78,4 @@ A pedagogical script can implement INT8 matmul with vector-wise scaling and demo
 
 ## Open questions
 
-The paper does not analyze why outlier features emerge with scale; subsequent work (Bondarenko et al. 2023, others) has investigated mechanistic causes in attention. INT4 quantization at scale was an open problem at the time of the paper and was addressed by GPTQ and successors.
+The paper does not analyze why outlier features emerge with scale; later work investigated mechanistic causes. INT4 at scale was an open problem at the time and was addressed by GPTQ and successors.
