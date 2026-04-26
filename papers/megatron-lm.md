@@ -77,8 +77,8 @@ Megatron-LM sits beside other parallelism families: data parallelism (Goyal et a
 
 ## Implementation notes
 
-A pedagogical script can simulate tensor parallelism on a single device by partitioning weight matrices manually and inserting fake AllReduce calls (just sums across the partitions). Minimum viable demo: a small MLP, partition W_1 column-wise and W_2 row-wise, compute partials per partition, AllReduce-sum, verify the result equals the unpartitioned forward. Pitfalls: forgetting that the input X is replicated (each partition uses the full X, only the weights are split); placing the AllReduce in the wrong place (between W_1 and W_2 when there should be no communication there); using row-wise partition where column-wise is correct (the AllReduce is over a different axis). The same script can demonstrate pipeline parallelism by sequentially passing activations through stage-partitioned layers.
+A pedagogical script can simulate tensor parallelism on a single device by partitioning weight matrices and inserting fake AllReduce calls (just sums across partitions). Minimum viable demo: a small MLP, partition W_1 column-wise and W_2 row-wise, compute partials, AllReduce-sum, verify equality with the unpartitioned forward. Pitfalls: forgetting X is replicated; placing the AllReduce between W_1 and W_2 (no communication should be there); using row-wise where column-wise is correct. The script can also demo pipeline parallelism via stage-partitioned layers.
 
 ## Open questions
 
-The paper does not address sequence parallelism or activation sharding for very long sequences; subsequent work fills these gaps. Communication-vs-compute trade-offs change with newer interconnects (NVLink-NVSwitch, InfiniBand, host-side interconnect); modern very-large-scale training requires tuning that the paper does not cover.
+The paper does not address sequence parallelism or activation sharding for very long sequences; subsequent work fills these gaps. Modern interconnects change the communication-vs-compute trade-off the paper analyzed.
