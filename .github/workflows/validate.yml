@@ -43,3 +43,24 @@ jobs:
           python-version: "3.12"
       - name: validate paper cards
         run: python scripts/generate_index.py --validate
+
+  cross-repo-invariants:
+    name: cross-repo invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: no-magic-papers
+      - uses: actions/checkout@v4
+        with:
+          repository: no-magic-ai/no-magic
+          ref: main
+          path: no-magic
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: enforce SOP §7.3 invariants 1-3
+        working-directory: no-magic-papers
+        run: |
+          python scripts/validate_invariants.py \
+            --catalog ../no-magic/docs/catalog.json
