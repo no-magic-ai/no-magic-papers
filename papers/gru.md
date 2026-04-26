@@ -83,4 +83,4 @@ A pedagogical comparison script can place vanilla RNN, GRU, and LSTM side by sid
 
 ## Open questions
 
-The paper does not give a theoretical reason GRU should match LSTM; subsequent work (Greff et al. 2017) confirmed empirical parity but did not produce a definitive analytical comparison. Modern long-context architectures (state-space models, attention) supersede both for most applications, but GRU remains a strong default whenever a small recurrent cell is needed.
+The paper does not give a theoretical reason GRU should match LSTM; subsequent work confirmed empirical parity. Modern long-context architectures supersede both for most applications.
