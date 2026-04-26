@@ -74,7 +74,7 @@ LLM.int8() sits in the post-training-quantization line: GPTQ (Frantar et al. 202
 
 ## Implementation notes
 
-A pedagogical script can implement INT8 matmul with vector-wise scaling and demonstrate the outlier failure mode on a tiny transformer. Minimum viable implementation: per-tensor (or per-row/per-column) scale calibration, INT8 quantization, fake-INT8 forward (scale, round, clip, then dequantize for the demo), and a comparison run with and without an outlier path. Pitfalls: forgetting that round-to-nearest-int needs to handle ties consistently; using per-tensor scales when per-channel scales are needed for accuracy; underestimating how much outlier handling matters — the demo will look fine without outliers and degrade catastrophically once a synthetic outlier is injected. Useful diagnostic: plot the per-channel max of activations across a few thousand tokens and observe the heavy-tailed distribution that motivates outlier handling.
+A pedagogical script can implement INT8 matmul with vector-wise scaling and demonstrate the outlier failure mode on a tiny transformer. Minimum viable implementation: per-row/per-column scale calibration, INT8 quantization, fake-INT8 forward (scale, round, clip, dequantize), and a comparison with and without an outlier path. Pitfalls: inconsistent round-to-nearest-int tie handling; using per-tensor scales when per-channel are needed; underestimating outlier handling — the demo looks fine without outliers and degrades catastrophically once a synthetic outlier is injected. Diagnostic: plot per-channel activation max across many tokens and observe the heavy-tailed distribution.
 
 ## Open questions
 
