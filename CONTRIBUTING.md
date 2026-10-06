@@ -28,8 +28,10 @@ Reference the paper card by slug and any implementation by its explicit reposito
 
 ## Review Rules
 
-- Every PR is manually reviewed.
-- No auto-merge.
+- Every PR is reviewed before merge. No auto-merge, review-bot solicitation or administrative bypass.
+- Scoped enhancement-phase technical merges ([issue #51](https://github.com/no-magic-ai/no-magic-papers/issues/51)): the canonical runner may mechanically merge a technical PR only after current design approval, separate independent verification, independent per-PR and coordinated-stack review, matching canonical and independent technical classifications of the actual head/base diff, every applicable current-head provider/CI gate, and no unresolved blocker. Technical scope is tooling, CI, deterministic link/metadata repairs and control/security plumbing that do not change scientific or math behavior. Reclassify and rerun stale gates when the head, base or either classification changes.
+- Paper cards, lessons, scientific/math behavior, research claims and other content require actual human approval naming the exact PR, current head SHA and content scope. Mixed, ambiguous or disputed classifications are human-gated. AI review, an agent-posted approval or stale approval is not human approval. Provider-required reviewers and branch protections remain binding.
+- This exception grants no automatic scientific review, factory activation, experimental spend, release/version authority or weakened acceptance/safety gate.
 - CI validates slug namespaces, required frontmatter, and generated index freshness.
 - `INDEX.md` is generated output. Hand edits are reverted.
 - Commits use conventional commit format, imperative mood, and one logical change per commit.
