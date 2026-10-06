@@ -40,6 +40,11 @@ implementations:
     script_slug: microgan
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v3.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microgan.py
+    preview_path: previews/microgan.gif
+    media_note: null
 lesson:
   path: null
   status: none

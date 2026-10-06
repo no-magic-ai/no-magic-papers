@@ -37,6 +37,11 @@ implementations:
     script_slug: microturboquant
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v2.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microturboquant.py
+    preview_path: previews/microturboquant.gif
+    media_note: null
 lesson:
   path: no-magic-papers/lessons/turboquant.md
   status: published

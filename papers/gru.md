@@ -40,6 +40,11 @@ implementations:
     script_slug: rnn_vs_gru_vs_lstm
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v3.0.0
+    media_repo: null
+    media_status: omitted
+    scene_path: null
+    preview_path: null
+    media_note: "Comparison script without a no-magic-viz scene or preview; media is declared omitted, not backfilled."
 lesson:
   path: null
   status: none

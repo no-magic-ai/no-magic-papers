@@ -34,11 +34,21 @@ implementations:
     script_slug: microoptimizer
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v3.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microoptimizer.py
+    preview_path: previews/microoptimizer.gif
+    media_note: null
   - repo: no-magic
     path: 02-alignment/adam_vs_sgd.py
     script_slug: adam_vs_sgd
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v3.0.0
+    media_repo: null
+    media_status: omitted
+    scene_path: null
+    preview_path: null
+    media_note: "Comparison script without a no-magic-viz scene or preview; media is declared omitted, not backfilled."
 lesson:
   path: null
   status: none
