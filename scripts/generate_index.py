@@ -185,7 +185,7 @@ def parse_scalar(raw: str, where: str) -> Scalar:
             return inner
     if raw[0] in "[]{}&*!|>%@`#,?-" or ": " in raw or " #" in raw or raw.endswith(":"):
         raise FrontmatterError(f"{where}: ambiguous plain scalar {raw!r}; quote it")
-    if raw in {"~", "true", "false", "yes", "no", "on", "off", "Null", "NULL"}:
+    if raw.lower() in {"~", "null", "true", "false", "yes", "no", "on", "off"}:
         raise FrontmatterError(f"{where}: ambiguous plain scalar {raw!r}; quote it")
     return raw
 

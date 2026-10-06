@@ -76,6 +76,29 @@ class ParseFrontmatterTests(unittest.TestCase):
         with self.assertRaisesRegex(FrontmatterError, "unsupported quoted scalar"):
             parse('title: "Unterminated')
 
+    def test_parse_frontmatter_unquoted_boolean_or_null_spelling_raises(self) -> None:
+        for spelling in [
+            "True",
+            "TRUE",
+            "False",
+            "FALSE",
+            "Yes",
+            "NO",
+            "On",
+            "OFF",
+            "Null",
+        ]:
+            with (
+                self.subTest(spelling=spelling),
+                self.assertRaisesRegex(FrontmatterError, "ambiguous plain scalar"),
+            ):
+                parse(f"media_note: {spelling}")
+
+    def test_parse_frontmatter_quoted_boolean_spelling_returns_string(self) -> None:
+        fields = parse("media_note: \"True\"\ntitle: 'OFF'")
+
+        self.assertEqual(fields, {"media_note": "True", "title": "OFF"})
+
     def test_parse_frontmatter_empty_block_raises(self) -> None:
         with self.assertRaisesRegex(FrontmatterError, "block has no content"):
             parse("authors:\nyear: 2024")
