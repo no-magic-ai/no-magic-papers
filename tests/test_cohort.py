@@ -8,7 +8,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from support import SCRIPTS, CohortTestCase, card, git, implementation
+from support import GIF_BYTES, SCRIPTS, CohortTestCase, card, git, implementation
 
 sys.path.insert(0, str(SCRIPTS))
 
@@ -183,6 +183,28 @@ class CommittedInputTests(CohortTestCase):
 
 
 class CrossRepoInvariantTests(CohortTestCase):
+    def test_unresolved_record_on_non_implemented_card_is_rejected(self) -> None:
+        baseline = self.cohort.validate(self.cohort.candidate_args())
+        self.assertEqual(baseline.returncode, 0, baseline.stderr)
+        self.commit_change(self.cohort.viz, "scenes/scene_microgamma.py", b"x = 1\n")
+        self.commit_change(self.cohort.viz, "previews/microgamma.gif", GIF_BYTES)
+        self.commit_change(
+            self.cohort.papers,
+            "papers/gamma.md",
+            card(
+                "gamma",
+                [implementation("microgamma", "03-systems")],
+                status="summarized",
+            ).encode(),
+            reindex=True,
+        )
+
+        self.assert_rejected(
+            self.cohort.validate(self.cohort.candidate_args()),
+            "invariant 2: papers/gamma.md references script_slug 'microgamma' "
+            "not present in catalog.json",
+        )
+
     def test_invalid_version_is_rejected_not_downgraded(self) -> None:
         self.commit_change(self.cohort.core, "VERSION", b"three\n")
 

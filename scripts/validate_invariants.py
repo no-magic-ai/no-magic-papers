@@ -11,8 +11,9 @@ It enforces SOP §7.3 invariants 1-3 plus path, lifecycle and media rules:
 
   Invariant 1: every catalog script has exactly one implemented paper card
   whose implementations[] names it.
-  Invariant 2: every implemented card's implementations[] resolve to catalog
-  entries and to committed no-magic files at {tier}/{script_slug}.py.
+  Invariant 2: every implementations[] record, whatever its card's status,
+  resolves to a catalog entry and a committed no-magic file at
+  {tier}/{script_slug}.py.
   Invariant 3: every catalog paper_slug names a card that references the
   script back. Enforced unconditionally; VERSION must be a valid MAJOR.MINOR.PATCH.
 
@@ -363,9 +364,9 @@ def check_ownership(
     for card in cards:
         for impl in card.implementations:
             references.setdefault(card.slug, set()).add(impl.script_slug)
-            if card.status != "implemented":
-                continue
-            implemented.setdefault(impl.script_slug, []).append(card.slug)
+            if card.status == "implemented":
+                implemented.setdefault(impl.script_slug, []).append(card.slug)
+            # Every declared record must resolve, whatever the card's status.
             entry = catalog.get(impl.script_slug)
             if entry is None:
                 findings.errors.append(

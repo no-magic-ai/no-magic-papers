@@ -24,6 +24,7 @@ sys.path.insert(0, str(SCRIPTS))
 import generate_index
 
 __all__ = [
+    "GIF_BYTES",
     "SCRIPTS",
     "Cohort",
     "CohortTestCase",
