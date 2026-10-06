@@ -130,37 +130,55 @@ class CommittedInputTests(CohortTestCase):
     ) -> None:
         baseline = self.cohort.validate(self.cohort.candidate_args())
         self.assertEqual(baseline.returncode, 0, baseline.stderr)
-        other = self.tmp / "other-checkout" / "scripts"
-        other.mkdir(parents=True)
         source = self.cohort.papers / "scripts"
-        (other / "generate_index.py").write_bytes(
-            (source / "generate_index.py").read_bytes()
-        )
-        (other / "validate_invariants.py").write_bytes(
-            (source / "validate_invariants.py").read_bytes()
-            + b"# differs from the selected revision\n"
-        )
-        receipt = self.tmp / "authority-receipt.json"
+        authorities = ("validate_invariants.py", "generate_index.py")
+        for changed in authorities:
+            with self.subTest(changed=changed):
+                checkout = self.tmp / f"other-checkout-{changed}"
+                intact = checkout / "intact" / "scripts"
+                other = checkout / "changed" / "scripts"
+                for scripts in (intact, other):
+                    scripts.mkdir(parents=True)
+                    for name in authorities:
+                        (scripts / name).write_bytes((source / name).read_bytes())
+                (other / changed).write_bytes(
+                    (source / changed).read_bytes()
+                    + b"# differs from the selected revision\n"
+                )
+                control_receipt = checkout / "control-receipt.json"
+                receipt = checkout / "authority-receipt.json"
 
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(other / "validate_invariants.py"),
-                *self.cohort.candidate_args(receipt),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+                control = subprocess.run(
+                    [
+                        sys.executable,
+                        str(intact / "validate_invariants.py"),
+                        *self.cohort.candidate_args(control_receipt),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(other / "validate_invariants.py"),
+                        *self.cohort.candidate_args(receipt),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
 
-        self.assert_rejected(result, "FAIL: 1 violation(s)")
-        self.assertIn(
-            "validator-authority-committed: running "
-            f"{(other / 'validate_invariants.py').resolve()} differs from papers "
-            "scripts/validate_invariants.py",
-            result.stderr,
-        )
-        self.assertFalse(receipt.exists())
+                self.assertEqual(control.returncode, 0, control.stderr)
+                self.assertTrue(control_receipt.exists())
+                self.assert_rejected(result, "FAIL: 1 violation(s)")
+                self.assertIn(
+                    "validator-authority-committed: running "
+                    f"{(other / changed).resolve()} differs from papers "
+                    f"scripts/{changed}",
+                    result.stderr,
+                )
+                self.assertFalse(receipt.exists())
 
     def test_uncommitted_card_edit_is_rejected_as_unbound_input(self) -> None:
         path = self.cohort.papers / "papers" / "beta.md"
