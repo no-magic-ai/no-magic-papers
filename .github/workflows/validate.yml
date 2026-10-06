@@ -73,24 +73,56 @@ jobs:
   cross-repo-invariants:
     name: cross-repo invariants
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+      - name: resolve cohort revisions once
+        id: refs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GIT_REF: ${{ github.ref }}
+          PAPERS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          resolve() {
+            local sha
+            sha=$(git ls-remote --exit-code "https://github.com/no-magic-ai/$1.git" refs/heads/main | cut -f1)
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "cannot resolve $1 main" >&2; exit 1; }
+            echo "$sha"
+          }
+          [[ "$PAPERS_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid papers revision" >&2; exit 1; }
+          if [ "$EVENT_NAME" = "push" ] && [ "$GIT_REF" = "refs/heads/main" ]; then
+            cohort=published
+          else
+            cohort=candidate
+          fi
+          # Plain assignments propagate a resolve failure under set -e; a
+          # substitution inside echo would not, leaving empty checkout refs.
+          core=$(resolve no-magic)
+          viz=$(resolve no-magic-viz)
+          {
+            echo "papers=$PAPERS_SHA"
+            echo "core=$core"
+            echo "viz=$viz"
+            echo "cohort=$cohort"
+          } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ steps.refs.outputs.papers }}
           path: no-magic-papers
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: no-magic-ai/no-magic
-          ref: main
+          ref: ${{ steps.refs.outputs.core }}
           path: no-magic
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: no-magic-ai/no-magic-viz
-          ref: main
+          ref: ${{ steps.refs.outputs.viz }}
           path: no-magic-viz
           fetch-depth: 0
           persist-credentials: false
@@ -100,9 +132,11 @@ jobs:
       - name: validate the explicit repository cohort
         working-directory: no-magic-papers
         env:
-          COHORT: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'published' || 'candidate' }}
+          COHORT: ${{ steps.refs.outputs.cohort }}
+          CORE_SHA: ${{ steps.refs.outputs.core }}
+          PAPERS_SHA: ${{ steps.refs.outputs.papers }}
+          VIZ_SHA: ${{ steps.refs.outputs.viz }}
         run: |
-          set -euo pipefail
           python scripts/validate_invariants.py \
             --catalog ../no-magic/docs/catalog.json \
             --core ../no-magic \
@@ -110,7 +144,14 @@ jobs:
             --papers papers \
             --require-paper-slug yes \
             --cohort "$COHORT" \
-            --core-revision "$(git -C ../no-magic rev-parse HEAD)" \
-            --papers-revision "$(git rev-parse HEAD)" \
-            --viz-revision "$(git -C ../no-magic-viz rev-parse HEAD)" \
+            --core-revision "$CORE_SHA" \
+            --papers-revision "$PAPERS_SHA" \
+            --viz-revision "$VIZ_SHA" \
             --receipt "$RUNNER_TEMP/cohort-receipt.json"
+      - name: retain the cohort receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: cohort-receipt-${{ steps.refs.outputs.cohort }}-${{ steps.refs.outputs.papers }}
+          path: ${{ runner.temp }}/cohort-receipt.json
+          if-no-files-found: error
+          retention-days: 90
