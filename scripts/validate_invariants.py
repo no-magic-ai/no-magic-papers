@@ -1,295 +1,694 @@
 #!/usr/bin/env python3
 """
-Cross-repo validator enforcing SOP §7.3 atomic integrity invariants 1-3.
+Cross-repo validator for one explicit no-magic / no-magic-papers / no-magic-viz cohort.
 
-This script reads:
-  - no-magic-papers/papers/*.md (this repo) — paper cards with frontmatter
-  - no-magic/docs/catalog.json (sibling repo, --catalog path) — script registry
+It reads paper cards and lessons through scripts/generate_index.py (the single
+frontmatter parser), the no-magic catalog, VERSION and implementation files,
+and the declared no-magic-viz scenes and previews. Every byte it reads must be
+the committed blob at the selected HEAD of its owning repository.
 
-And enforces:
+It enforces SOP §7.3 invariants 1-3 plus path, lifecycle and media rules:
 
-  Invariant 1: Every script in catalog.json has exactly one paper card whose
-  implementations[] contains a script_slug matching the catalog entry's name,
-  and that card's status is `implemented`.
+  Invariant 1: every catalog script has exactly one implemented paper card
+  whose implementations[] names it.
+  Invariant 2: every implementations[] record, whatever its card's status,
+  resolves to a catalog entry and a committed no-magic file at
+  {tier}/{script_slug}.py.
+  Invariant 3: every catalog paper_slug names a card that references the
+  script back. Enforced unconditionally; VERSION must be a valid MAJOR.MINOR.PATCH.
 
-  Invariant 2: Every paper card with status `implemented` has implementations[]
-  entries whose script_slug values resolve to a real entry in catalog.json
-  (the proxy here for "the file exists in the named repo on main").
+  Media: a linked record names a committed scene (valid Python) and GIF preview
+  (valid header, nonzero size) in no-magic-viz; an omitted record is allowed
+  only for catalog teaching_kind `comparison`. This is not render, playback or
+  conceptual-fidelity certification.
 
-  Invariant 3 (no-magic v3.0+): Every catalog entry must have a paper_slug
-  field that points at a real paper card; the paper card's implementations[]
-  must reference back. (This is the symmetric form of Invariant 1.)
+Cohorts:
+  published (default)  each selected commit must be an ancestor of the public
+                       repository's main, resolved by unauthenticated read-only
+                       `git ls-remote` and checked against locally present
+                       history. The validator never fetches.
+  candidate            all three --*-revision arguments are required and must
+                       equal the worktree HEADs. No publication claim is made.
+
+On success a schema-version-1 JSON receipt is written to --receipt (outside
+the checked repositories) or printed on stdout; diagnostics go to stderr.
 
 Usage:
-    python scripts/validate_invariants.py --catalog ../no-magic/docs/catalog.json
+    python scripts/validate_invariants.py --catalog ../no-magic/docs/catalog.json \\
+        --core ../no-magic --viz ../no-magic-viz --papers papers \\
+        --require-paper-slug yes --cohort candidate \\
+        --core-revision SHA --papers-revision SHA --viz-revision SHA --receipt FILE
 
 Exit codes:
-    0  all invariants hold
-    1  one or more invariants violated (details printed to stderr)
-    2  bad arguments or missing files
+    0  the whole cohort is valid (receipt emitted)
+    1  one or more checks failed (details on stderr; no receipt)
+    2  bad arguments or missing input directories
 """
+
 from __future__ import annotations
 
 import argparse
+import ast
+import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 
+import generate_index
+from generate_index import Card, ValidationError, safe_relative_path
 
-def parse_card(path: Path) -> dict[str, object]:
-    """Parse a paper card and return a dict of fields needed for validation."""
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        raise ValueError(f"{path}: missing YAML frontmatter")
-    try:
-        _, frontmatter, _ = text.split("---\n", 2)
-    except ValueError as exc:
-        raise ValueError(f"{path}: malformed YAML frontmatter fence") from exc
-
-    slug = path.stem
-    status = ""
-    implementations: list[dict[str, str]] = []
-
-    in_impl_block = False
-    current_entry: dict[str, str] | None = None
-
-    for line in frontmatter.splitlines():
-        if not in_impl_block:
-            # Top-level keys have no leading whitespace. Nested keys (e.g.
-            # `lesson.status`) are indented and must NOT be matched here.
-            m = re.match(r"^status:\s*(.+)$", line)
-            if m:
-                status = m.group(1).strip().strip('"').strip("'")
-                continue
-            if line == "implementations: []":
-                in_impl_block = False
-                continue
-            if line.startswith("implementations:"):
-                in_impl_block = True
-                continue
-        else:
-            if line and not line.startswith(" "):
-                in_impl_block = False
-                if current_entry is not None:
-                    implementations.append(current_entry)
-                    current_entry = None
-                continue
-            if line.lstrip().startswith("- "):
-                if current_entry is not None:
-                    implementations.append(current_entry)
-                current_entry = {}
-                rest = line.lstrip()[2:]
-                if ":" in rest:
-                    key, _, val = rest.partition(":")
-                    current_entry[key.strip()] = val.strip().strip('"').strip("'")
-                continue
-            m = re.match(r"\s+([a-z_]+):\s*(.*)$", line)
-            if m and current_entry is not None:
-                current_entry[m.group(1)] = m.group(2).strip().strip('"').strip("'")
-
-    if current_entry is not None:
-        implementations.append(current_entry)
-
-    return {"slug": slug, "status": status, "implementations": implementations}
+RECEIPT_SCHEMA_VERSION = 1
+GITHUB_ORG = "no-magic-ai"
+REPOSITORIES = ("no-magic", "no-magic-papers", "no-magic-viz")
+PUBLIC_MAIN_REF = "refs/heads/main"
+PROVIDER_TIMEOUT_SECONDS = 60
+VERSION_PATTERN = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\n?$")
+FULL_OID = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+GIF_SIGNATURES = (b"GIF87a", b"GIF89a")
+CATALOG_STRING_FIELDS = ("tier", "name", "paper_slug", "teaching_kind")
+INVARIANTS = (
+    "repository-identity",
+    "revision-binding",
+    "committed-input-binding",
+    "validator-authority-committed",
+    "frontmatter-schema",
+    "card-body-sections",
+    "dependency-links",
+    "lesson-lifecycle",
+    "implementation-path-shape",
+    "duplicate-ownership",
+    "version-valid",
+    "catalog-shape",
+    "invariant-1-catalog-script-owned",
+    "invariant-2-implementation-resolves",
+    "invariant-3-paper-slug-backref",
+    "media-declaration",
+    "media-omission-comparison-only",
+    "media-assets",
+    "index-fresh",
+)
 
 
-def load_papers(papers_dir: Path) -> list[dict[str, object]]:
-    """Load and parse every paper card under papers/."""
-    cards = []
-    for card_path in sorted(papers_dir.glob("*.md")):
-        cards.append(parse_card(card_path))
-    return cards
+def public_url(name: str) -> str:
+    return f"https://github.com/{GITHUB_ORG}/{name}.git"
 
 
-def load_catalog(catalog_path: Path) -> list[dict[str, object]]:
-    """Load no-magic catalog.json."""
-    return json.loads(catalog_path.read_text(encoding="utf-8"))
+class CohortError(Exception):
+    """A cohort-level precondition (identity, revision, publication) failed."""
 
 
-def check_invariants(
-    catalog: list[dict[str, object]],
-    cards: list[dict[str, object]],
-    enforce_invariant_3: bool = True,
-) -> list[str]:
-    """Return a list of invariant-violation messages (empty if all pass).
+def git(root: Path, *args: str) -> bytes:
+    proc = subprocess.run(
+        ["git", "-C", str(root), *args],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.decode(errors="replace").strip()
+        raise CohortError(f"{root}: git {' '.join(args)} failed: {detail}")
+    return proc.stdout
 
-    Invariants 1 and 2 are always enforced. Invariant 3 (the catalog must carry
-    paper_slug pointing back at the card) is enforced only when
-    enforce_invariant_3 is True — set False for pre-v3.0 catalogs that have
-    not yet adopted the paper_slug field.
-    """
-    errors: list[str] = []
 
-    # Build (script_slug -> [card_slugs that point at it]) for invariant 1
-    script_to_cards: dict[str, list[str]] = {}
-    # Build (script_slug -> set of card_slugs whose status is implemented and reference it)
-    script_to_implemented_cards: dict[str, list[str]] = {}
-    # Build (card_slug -> status) and (card_slug -> [script_slug ...])
-    card_status: dict[str, str] = {}
-    card_to_scripts: dict[str, list[str]] = {}
+def blob_oid(data: bytes, object_format: str) -> str:
+    header = f"blob {len(data)}\0".encode()
+    digest = hashlib.sha256() if object_format == "sha256" else hashlib.sha1()
+    digest.update(header + data)
+    return digest.hexdigest()
 
-    for card in cards:
-        slug = str(card["slug"])
-        status = str(card["status"])
-        impls = card["implementations"]
-        if not isinstance(impls, list):
-            errors.append(f"card {slug}: implementations must be a list")
-            continue
-        card_status[slug] = status
-        scripts_in_card: list[str] = []
-        for entry in impls:
-            if not isinstance(entry, dict):
-                continue
-            script_slug = entry.get("script_slug", "")
-            if not script_slug or script_slug == "null":
-                continue
-            scripts_in_card.append(script_slug)
-            script_to_cards.setdefault(script_slug, []).append(slug)
-            if status == "implemented":
-                script_to_implemented_cards.setdefault(script_slug, []).append(slug)
-        card_to_scripts[slug] = scripts_in_card
 
-    catalog_names = {str(entry["name"]) for entry in catalog}
+def normalized_remote(url: str) -> str:
+    """Reduce a GitHub remote URL to 'org/name' (lowercase); '' when not GitHub."""
+    value = url.strip()
+    for prefix in ("https://github.com/", "ssh://git@github.com/", "git@github.com:"):
+        if value.lower().startswith(prefix):
+            value = value[len(prefix) :]
+            break
+    else:
+        return ""
+    return value.rstrip("/").removesuffix(".git").lower()
 
-    # Invariant 1: every catalog script has exactly one implemented paper card.
-    for entry in catalog:
-        name = str(entry["name"])
-        impl_cards = script_to_implemented_cards.get(name, [])
-        if len(impl_cards) == 0:
-            errors.append(
-                f"invariant 1: script {name!r} in catalog has no paper card with "
-                f"status=implemented and implementations[].script_slug={name!r}"
+
+@dataclass
+class Repository:
+    """One selected repository: its identity, HEAD and the committed inputs read."""
+
+    name: str
+    root: Path
+    commit: str = ""
+    tree: str = ""
+    object_format: str = "sha1"
+    entries: dict[str, tuple[str, str]] = field(default_factory=dict)
+    inputs: dict[str, tuple[str, str]] = field(default_factory=dict)
+    publication: dict[str, str] = field(default_factory=dict)
+
+    def open(self) -> None:
+        if not self.root.is_dir():
+            raise CohortError(f"{self.name} root {self.root} is not a directory")
+        toplevel = Path(
+            os.fsdecode(git(self.root, "rev-parse", "--show-toplevel").strip())
+        )
+        if toplevel.resolve() != self.root.resolve():
+            raise CohortError(
+                f"{self.name} root {self.root} is not its Git worktree top level ({toplevel})"
             )
-        elif len(impl_cards) > 1:
-            errors.append(
-                f"invariant 1: script {name!r} has multiple paper cards: {impl_cards}"
+        origin = git(self.root, "config", "--get", "remote.origin.url").decode().strip()
+        if normalized_remote(origin) != f"{GITHUB_ORG}/{self.name}":
+            raise CohortError(
+                f"{self.root} origin {origin!r} is not {GITHUB_ORG}/{self.name}"
             )
+        self.commit = (
+            git(self.root, "rev-parse", "--verify", "HEAD^{commit}").decode().strip()
+        )
+        self.tree = (
+            git(self.root, "rev-parse", "--verify", "HEAD^{tree}").decode().strip()
+        )
+        self.object_format = (
+            git(self.root, "rev-parse", "--show-object-format").decode().strip()
+        )
+        listing = git(self.root, "ls-tree", "-r", "-z", "--full-tree", "HEAD")
+        for record in listing.split(b"\0"):
+            if not record:
+                continue
+            meta, _, path = record.partition(b"\t")
+            mode, kind, oid = meta.decode().split(" ")
+            self.entries[os.fsdecode(path)] = (mode, f"{kind}:{oid}")
 
-    # Invariant 2: every implemented card's implementations[] script_slugs
-    # resolve to a real catalog entry.
-    for card_slug, status in card_status.items():
-        if status != "implemented":
-            continue
-        for script_slug in card_to_scripts.get(card_slug, []):
-            if script_slug not in catalog_names:
-                errors.append(
-                    f"invariant 2: paper card {card_slug!r} (status implemented) "
-                    f"references script_slug {script_slug!r} not present in catalog.json"
+    def read(self, relative: str) -> bytes:
+        """Return working-tree bytes of relative, which must equal its committed blob."""
+        unsafe = safe_relative_path(relative)
+        if unsafe:
+            raise ValueError(f"{self.name}: {unsafe}")
+        current = self.root
+        for part in relative.split("/"):
+            current = current / part
+            if current.is_symlink():
+                raise ValueError(
+                    f"{self.name}:{relative} has a symlink component {current.name!r}"
                 )
+        if not current.is_file():
+            raise ValueError(f"{self.name}:{relative} is not a regular file")
+        entry = self.entries.get(relative)
+        if (
+            entry is None
+            or entry[0] not in {"100644", "100755"}
+            or not entry[1].startswith("blob:")
+        ):
+            raise ValueError(
+                f"{self.name}:{relative} is not a committed regular file at {self.commit}"
+            )
+        data = current.read_bytes()
+        oid = blob_oid(data, self.object_format)
+        if entry[1] != f"blob:{oid}":
+            raise ValueError(
+                f"{self.name}:{relative} differs from its committed blob at {self.commit}"
+            )
+        self.inputs[relative] = (hashlib.sha256(data).hexdigest(), oid)
+        return data
 
-    # Invariant 3 (v3.0+): every catalog entry has a paper_slug field that
-    # matches an existing paper card AND that card's implementations[] references
-    # the script back. Skip when enforce_invariant_3 is False (pre-v3.0).
-    if not enforce_invariant_3:
-        return errors
+    def committed_names(self, directory: str, suffix: str) -> set[str]:
+        prefix = f"{directory}/"
+        return {
+            path[len(prefix) :]
+            for path in self.entries
+            if path.startswith(prefix)
+            and "/" not in path[len(prefix) :]
+            and path.endswith(suffix)
+        }
 
-    paper_slugs = set(card_status.keys())
-    for entry in catalog:
-        name = str(entry["name"])
-        paper_slug = entry.get("paper_slug")
-        if paper_slug is None:
-            errors.append(
-                f"invariant 3: catalog entry {name!r} is missing paper_slug field "
-                f"(required from no-magic v3.0)"
+
+def provider_main(url: str) -> str:
+    """Resolve refs/heads/main of a public repository with no credentials or config."""
+    with tempfile.TemporaryDirectory(prefix="no-magic-provider-") as home:
+        env = {
+            "PATH": os.environ.get("PATH", os.defpath),
+            "HOME": home,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_ASKPASS": "",
+            "SSH_ASKPASS": "",
+            "LC_ALL": "C",
+        }
+        try:
+            proc = subprocess.run(
+                ["git", "ls-remote", "--exit-code", url, PUBLIC_MAIN_REF],
+                cwd=home,
+                env=env,
+                capture_output=True,
+                timeout=PROVIDER_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise CohortError(
+                f"{url}: ls-remote timed out after {PROVIDER_TIMEOUT_SECONDS}s"
+            ) from exc
+    if proc.returncode != 0:
+        detail = proc.stderr.decode(errors="replace").strip()
+        raise CohortError(
+            f"{url}: cannot resolve {PUBLIC_MAIN_REF}: {detail or 'no such ref'}"
+        )
+    lines = [line.split("\t") for line in proc.stdout.decode().splitlines()]
+    oids = [
+        parts[0] for parts in lines if len(parts) == 2 and parts[1] == PUBLIC_MAIN_REF
+    ]
+    if len(oids) != 1 or not FULL_OID.match(oids[0]):
+        raise CohortError(f"{url}: unexpected ls-remote output for {PUBLIC_MAIN_REF}")
+    return oids[0]
+
+
+def publication_evidence(repository: Repository, provider: str) -> dict[str, str]:
+    """Prove repository.commit is published ancestry of the provider's main."""
+    main = provider_main(provider)
+    present = subprocess.run(
+        ["git", "-C", str(repository.root), "cat-file", "-e", f"{main}^{{commit}}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if present.returncode != 0:
+        raise CohortError(
+            f"{repository.name}: provider main {main} is not in local history; "
+            f"fetch it before validating (the validator never fetches)"
+        )
+    ancestry = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository.root),
+            "merge-base",
+            "--is-ancestor",
+            repository.commit,
+            main,
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if ancestry.returncode == 1:
+        raise CohortError(
+            f"{repository.name}: {repository.commit} is not published on {provider} main {main}"
+        )
+    if ancestry.returncode != 0:
+        raise CohortError(
+            f"{repository.name}: ancestry check failed: {ancestry.stderr.decode(errors='replace').strip()}"
+        )
+    return {
+        "status": "published",
+        "provider": provider,
+        "ref": PUBLIC_MAIN_REF,
+        "main_commit": main,
+        "evidence": "selected commit is an ancestor of provider main in local history",
+    }
+
+
+@dataclass
+class Findings:
+    errors: list[str] = field(default_factory=list)
+    omissions: list[dict[str, str]] = field(default_factory=list)
+    linked: int = 0
+
+
+def check_version(core: Repository, findings: Findings) -> None:
+    try:
+        raw = core.read("VERSION")
+    except ValueError as exc:
+        findings.errors.append(f"version-valid: {exc}")
+        return
+    if not VERSION_PATTERN.match(raw.decode("utf-8", errors="replace")):
+        findings.errors.append(
+            f"version-valid: no-magic VERSION {raw!r} is not MAJOR.MINOR.PATCH"
+        )
+
+
+def load_catalog(core: Repository, findings: Findings) -> dict[str, dict[str, str]]:
+    try:
+        entries = json.loads(core.read("docs/catalog.json").decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        findings.errors.append(f"catalog-shape: {exc}")
+        return {}
+    if not isinstance(entries, list):
+        findings.errors.append("catalog-shape: catalog.json must be a JSON array")
+        return {}
+    catalog: dict[str, dict[str, str]] = {}
+    for position, entry in enumerate(entries):
+        if not isinstance(entry, dict) or not all(
+            isinstance(entry.get(key), str) and entry.get(key)
+            for key in CATALOG_STRING_FIELDS
+        ):
+            findings.errors.append(
+                f"catalog-shape: entry {position} needs non-empty string {', '.join(CATALOG_STRING_FIELDS)}"
             )
             continue
-        if not isinstance(paper_slug, str) or not paper_slug:
-            errors.append(
-                f"invariant 3: catalog entry {name!r} paper_slug must be a non-empty string"
-            )
+        name = entry["name"]
+        if name in catalog:
+            findings.errors.append(f"catalog-shape: duplicate catalog name {name!r}")
             continue
-        if paper_slug not in paper_slugs:
-            errors.append(
-                f"invariant 3: catalog entry {name!r} paper_slug={paper_slug!r} "
-                f"does not match any paper card in papers/"
+        catalog[name] = {key: entry[key] for key in CATALOG_STRING_FIELDS}
+    return catalog
+
+
+def check_ownership(
+    cards: tuple[Card, ...],
+    catalog: dict[str, dict[str, str]],
+    core: Repository,
+    findings: Findings,
+) -> None:
+    implemented: dict[str, list[str]] = {}
+    references: dict[str, set[str]] = {}
+    slugs = {card.slug for card in cards}
+    for card in cards:
+        for impl in card.implementations:
+            references.setdefault(card.slug, set()).add(impl.script_slug)
+            if card.status == "implemented":
+                implemented.setdefault(impl.script_slug, []).append(card.slug)
+            # Every declared record must resolve, whatever the card's status.
+            entry = catalog.get(impl.script_slug)
+            if entry is None:
+                findings.errors.append(
+                    f"invariant 2: {card.path} references script_slug {impl.script_slug!r} not present in catalog.json"
+                )
+                continue
+            expected = f"{entry['tier']}/{impl.script_slug}.py"
+            if impl.path != expected:
+                findings.errors.append(
+                    f"invariant 2: {card.path} path {impl.path!r} is not the catalog location {expected!r}"
+                )
+                continue
+            try:
+                core.read(impl.path)
+            except ValueError as exc:
+                findings.errors.append(f"invariant 2: {card.path}: {exc}")
+    for name, entry in sorted(catalog.items()):
+        owners = implemented.get(name, [])
+        if len(owners) != 1:
+            findings.errors.append(
+                f"invariant 1: catalog script {name!r} has {len(owners)} implemented paper cards {owners}; expected exactly one"
             )
+        paper_slug = entry["paper_slug"]
+        if paper_slug not in slugs:
+            findings.errors.append(
+                f"invariant 3: catalog {name!r} paper_slug={paper_slug!r} names no paper card"
+            )
+        elif name not in references.get(paper_slug, set()):
+            findings.errors.append(
+                f"invariant 3: catalog {name!r} paper_slug={paper_slug!r} but that card does not reference {name!r}"
+            )
+
+
+def check_media(
+    cards: tuple[Card, ...],
+    catalog: dict[str, dict[str, str]],
+    viz: Repository,
+    findings: Findings,
+) -> None:
+    for card in cards:
+        for impl in card.implementations:
+            label = f"{card.path} {impl.script_slug}"
+            if impl.media_status == "omitted":
+                kind = catalog.get(impl.script_slug, {}).get("teaching_kind")
+                if kind != "comparison":
+                    findings.errors.append(
+                        f"media: {label} declares omitted media but teaching_kind is {kind!r}, not 'comparison'"
+                    )
+                    continue
+                findings.omissions.append(
+                    {
+                        "paper_slug": card.slug,
+                        "script_slug": impl.script_slug,
+                        "teaching_kind": kind,
+                        "media_status": "omitted",
+                        "media_note": impl.media_note or "",
+                    }
+                )
+                continue
+            if impl.scene_path is None or impl.preview_path is None:
+                findings.errors.append(
+                    f"media: {label} linked media lacks scene_path or preview_path"
+                )
+                continue
+            try:
+                scene = viz.read(impl.scene_path)
+                preview = viz.read(impl.preview_path)
+            except ValueError as exc:
+                findings.errors.append(f"media: {label}: {exc}")
+                continue
+            try:
+                ast.parse(scene.decode("utf-8"), filename=impl.scene_path)
+            except (SyntaxError, UnicodeDecodeError) as exc:
+                findings.errors.append(
+                    f"media: {label} scene {impl.scene_path} is not valid Python: {exc}"
+                )
+                continue
+            width = int.from_bytes(preview[6:8], "little") if len(preview) >= 10 else 0
+            height = (
+                int.from_bytes(preview[8:10], "little") if len(preview) >= 10 else 0
+            )
+            if preview[:6] not in GIF_SIGNATURES or width == 0 or height == 0:
+                findings.errors.append(
+                    f"media: {label} preview {impl.preview_path} is not a GIF with nonzero dimensions"
+                )
+                continue
+            findings.linked += 1
+
+
+def check_listing(papers: Repository, directory: str, findings: Findings) -> None:
+    on_disk = {p.name for p in (papers.root / directory).glob("*.md")}
+    committed = papers.committed_names(directory, ".md")
+    for name in sorted(on_disk - committed):
+        findings.errors.append(
+            f"committed-input-binding: {directory}/{name} is not committed at {papers.commit}"
+        )
+    for name in sorted(committed - on_disk):
+        findings.errors.append(
+            f"committed-input-binding: committed {directory}/{name} is missing from the worktree"
+        )
+
+
+def check_authority(papers: Repository, findings: Findings) -> None:
+    """The parser/validator that ran must be the committed authority of the selected papers revision."""
+    parser_file = generate_index.__file__
+    if parser_file is None:
+        raise CohortError("cannot locate the imported generate_index module file")
+    running = {
+        "scripts/generate_index.py": Path(parser_file).resolve(),
+        "scripts/validate_invariants.py": Path(__file__).resolve(),
+    }
+    for relative, path in running.items():
+        try:
+            committed = papers.read(relative)
+        except ValueError as exc:
+            findings.errors.append(f"validator-authority-committed: {exc}")
             continue
-        if name not in card_to_scripts.get(paper_slug, []):
-            errors.append(
-                f"invariant 3: catalog entry {name!r} paper_slug={paper_slug!r} "
-                f"but the card's implementations[] does not reference {name!r}"
+        if path.read_bytes() != committed:
+            findings.errors.append(
+                f"validator-authority-committed: running {path} differs from papers {relative} at {papers.commit}"
             )
-
-    return errors
-
-
-def detect_no_magic_major_version(catalog_path: Path) -> int:
-    """Return the no-magic major version by reading sibling VERSION file.
-
-    Defaults to 0 if VERSION cannot be located, which suppresses invariant 3
-    enforcement on pre-v3 catalogs.
-    """
-    version_path = catalog_path.resolve().parent.parent / "VERSION"
-    if not version_path.is_file():
-        return 0
-    raw = version_path.read_text(encoding="utf-8").strip()
-    head = raw.split(".", 1)[0]
-    if not head.isdigit():
-        return 0
-    return int(head)
+    try:
+        papers.read("SCHEMA.md")
+    except ValueError as exc:
+        findings.errors.append(f"validator-authority-committed: {exc}")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+def validate_cohort(repos: dict[str, Repository]) -> Findings:
+    core, papers, viz = (
+        repos["no-magic"],
+        repos["no-magic-papers"],
+        repos["no-magic-viz"],
+    )
+    findings = Findings()
+    check_authority(papers, findings)
+    check_listing(papers, "papers", findings)
+    check_listing(papers, "lessons", findings)
+    try:
+        repository = generate_index.load_repository(papers.root, papers.read)
+    except ValidationError as exc:
+        findings.errors.extend(f"papers: {error}" for error in exc.errors)
+        return findings
+    try:
+        if papers.read("INDEX.md") != generate_index.render(repository.cards):
+            findings.errors.append(
+                "index-fresh: INDEX.md bytes differ from scripts/generate_index.py output"
+            )
+    except ValueError as exc:
+        findings.errors.append(f"index-fresh: {exc}")
+    check_version(core, findings)
+    catalog = load_catalog(core, findings)
+    try:
+        core.read("scripts/generate_catalog.py")
+    except ValueError as exc:
+        findings.errors.append(f"catalog-shape: {exc}")
+    check_ownership(repository.cards, catalog, core, findings)
+    check_media(repository.cards, catalog, viz, findings)
+    return findings
+
+
+def build_receipt(
+    cohort: str, repos: dict[str, Repository], findings: Findings
+) -> dict[str, object]:
+    invariants: list[str] = list(INVARIANTS)
+    if cohort == "published":
+        invariants.append("publication-ancestry")
+    return {
+        "schema_version": RECEIPT_SCHEMA_VERSION,
+        "cohort": cohort,
+        "repositories": {
+            name: {
+                "identity": f"{GITHUB_ORG}/{name}",
+                "commit": repo.commit,
+                "tree": repo.tree,
+                "object_format": repo.object_format,
+                "publication": repo.publication,
+                "inputs": [
+                    {"path": path, "sha256": digest, "blob": oid}
+                    for path, (digest, oid) in sorted(repo.inputs.items())
+                ],
+            }
+            for name, repo in repos.items()
+        },
+        "omissions": sorted(
+            findings.omissions,
+            key=lambda item: (item["paper_slug"], item["script_slug"]),
+        ),
+        "media": {"linked": findings.linked, "omitted": len(findings.omissions)},
+        "invariants": invariants,
+    }
+
+
+def receipt_target(path: Path, repos: dict[str, Repository]) -> Path:
+    target = path.resolve()
+    for repo in repos.values():
+        if target.is_relative_to(repo.root.resolve()):
+            raise CohortError(
+                f"--receipt {path} must be outside the checked repository {repo.root}"
+            )
+    return target
+
+
+def parse_args(argv: list[str] | None) -> argparse.Namespace:
+    script_root = Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser(
+        description="Validate one explicit no-magic repository cohort."
+    )
     parser.add_argument(
-        "--catalog",
-        type=Path,
-        required=True,
-        help="path to no-magic/docs/catalog.json",
+        "--catalog", type=Path, required=True, help="path to no-magic/docs/catalog.json"
     )
     parser.add_argument(
         "--papers",
         type=Path,
-        default=Path(__file__).resolve().parents[1] / "papers",
-        help="path to papers/ directory (default: ../papers relative to script)",
+        default=script_root / "papers",
+        help="no-magic-papers papers/ directory",
+    )
+    parser.add_argument(
+        "--core",
+        type=Path,
+        help="no-magic worktree (default: sibling of no-magic-papers)",
+    )
+    parser.add_argument(
+        "--viz",
+        type=Path,
+        help="no-magic-viz worktree (default: sibling of no-magic-papers)",
     )
     parser.add_argument(
         "--require-paper-slug",
-        choices=("auto", "yes", "no"),
-        default="auto",
-        help=(
-            "enforce SOP §7.3 invariant 3 (catalog must carry paper_slug). "
-            "'auto' enables it when the no-magic VERSION file reports major >= 3."
-        ),
+        choices=("yes",),
+        default="yes",
+        help="SOP §7.3 invariant 3 is always enforced; 'yes' is the only accepted value",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--cohort", choices=("candidate", "published"), default="published"
+    )
+    for name in ("core", "papers", "viz"):
+        parser.add_argument(
+            f"--{name}-revision",
+            metavar="SHA",
+            help=f"expected full commit of the {name} HEAD",
+        )
+    parser.add_argument(
+        "--receipt",
+        type=Path,
+        help="write the JSON receipt here (outside the checked repositories)",
+    )
+    args = parser.parse_args(argv)
+    revisions = (args.core_revision, args.papers_revision, args.viz_revision)
+    if args.cohort == "candidate" and None in revisions:
+        parser.error(
+            "--cohort candidate requires --core-revision, --papers-revision and --viz-revision"
+        )
+    for value in revisions:
+        if value is not None and not FULL_OID.match(value):
+            parser.error(f"revision {value!r} must be a full lowercase commit id")
+    return args
 
-    if not args.catalog.is_file():
-        print(f"catalog file not found: {args.catalog}", file=sys.stderr)
-        return 2
-    if not args.papers.is_dir():
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    papers_dir = args.papers.resolve()
+    papers_root = papers_dir.parent
+    if not papers_dir.is_dir() or papers_dir.name != "papers":
         print(f"papers directory not found: {args.papers}", file=sys.stderr)
         return 2
-
+    roots = {
+        "no-magic": (args.core or papers_root.parent / "no-magic").resolve(),
+        "no-magic-papers": papers_root,
+        "no-magic-viz": (args.viz or papers_root.parent / "no-magic-viz").resolve(),
+    }
+    expected = {
+        "no-magic": args.core_revision,
+        "no-magic-papers": args.papers_revision,
+        "no-magic-viz": args.viz_revision,
+    }
+    repos = {name: Repository(name=name, root=root) for name, root in roots.items()}
     try:
-        cards = load_papers(args.papers)
-        catalog = load_catalog(args.catalog)
-    except (ValueError, json.JSONDecodeError) as exc:
-        print(f"failed to load inputs: {exc}", file=sys.stderr)
-        return 2
-
-    if args.require_paper_slug == "yes":
-        enforce_inv3 = True
-    elif args.require_paper_slug == "no":
-        enforce_inv3 = False
-    else:
-        enforce_inv3 = detect_no_magic_major_version(args.catalog) >= 3
-
-    errors = check_invariants(catalog, cards, enforce_invariant_3=enforce_inv3)
-    if errors:
-        print(
-            f"FAIL: {len(errors)} invariant violation(s) across {len(catalog)} "
-            f"catalog scripts and {len(cards)} paper cards:",
-            file=sys.stderr,
-        )
-        for err in errors:
-            print(f"  - {err}", file=sys.stderr)
+        if args.catalog.resolve() != roots["no-magic"] / "docs" / "catalog.json":
+            raise CohortError(
+                f"--catalog {args.catalog} is not docs/catalog.json of the no-magic root {roots['no-magic']}"
+            )
+        for name, repo in repos.items():
+            repo.open()
+            if expected[name] is not None and expected[name] != repo.commit:
+                raise CohortError(
+                    f"{name}: expected revision {expected[name]} but {repo.root} HEAD is {repo.commit}"
+                )
+        target = receipt_target(args.receipt, repos) if args.receipt else None
+        findings = validate_cohort(repos)
+        if findings.errors:
+            print(
+                f"FAIL: {len(findings.errors)} violation(s) in the {args.cohort} cohort:",
+                file=sys.stderr,
+            )
+            for error in findings.errors:
+                print(f"  - {error}", file=sys.stderr)
+            return 1
+        for name, repo in repos.items():
+            if args.cohort == "published":
+                repo.publication = publication_evidence(repo, public_url(name))
+            else:
+                repo.publication = {
+                    "status": "not-asserted",
+                    "classification": "candidate",
+                }
+    except CohortError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
         return 1
-
+    receipt = (
+        json.dumps(
+            build_receipt(args.cohort, repos, findings), indent=2, sort_keys=True
+        )
+        + "\n"
+    )
+    if target is None:
+        sys.stdout.write(receipt)
+    else:
+        target.write_text(receipt, encoding="utf-8")
     print(
-        f"OK: SOP §7.3 invariants 1-3 hold across {len(catalog)} catalog "
-        f"scripts and {len(cards)} paper cards"
+        f"OK: {args.cohort} cohort valid — {len(repos['no-magic-papers'].inputs)} papers, "
+        f"{len(repos['no-magic'].inputs)} core and {len(repos['no-magic-viz'].inputs)} viz inputs bound to committed blobs",
+        file=sys.stderr,
     )
     return 0
 

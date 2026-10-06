@@ -36,16 +36,31 @@ implementations:
     script_slug: microssm
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v2.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microssm.py
+    preview_path: previews/microssm.gif
+    media_note: null
   - repo: no-magic
     path: 03-systems/microcomplexssm.py
     script_slug: microcomplexssm
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v2.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microcomplexssm.py
+    preview_path: previews/microcomplexssm.gif
+    media_note: null
   - repo: no-magic
     path: 03-systems/microdiscretize.py
     script_slug: microdiscretize
     commit: 4d43527c7eed48f7306ad56e4d04e5bd43cfd045
     release: v2.0.0
+    media_repo: no-magic-viz
+    media_status: linked
+    scene_path: scenes/scene_microdiscretize.py
+    preview_path: previews/microdiscretize.gif
+    media_note: null
 lesson:
   path: null
   status: none
