@@ -96,10 +96,14 @@ jobs:
           else
             cohort=candidate
           fi
+          # Plain assignments propagate a resolve failure under set -e; a
+          # substitution inside echo would not, leaving empty checkout refs.
+          core=$(resolve no-magic)
+          viz=$(resolve no-magic-viz)
           {
             echo "papers=$PAPERS_SHA"
-            echo "core=$(resolve no-magic)"
-            echo "viz=$(resolve no-magic-viz)"
+            echo "core=$core"
+            echo "viz=$viz"
             echo "cohort=$cohort"
           } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
