@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -124,6 +125,43 @@ class CandidateReceiptTests(CohortTestCase):
 
 
 class CommittedInputTests(CohortTestCase):
+    def test_validator_run_from_other_checkout_is_rejected_as_unselected_authority(
+        self,
+    ) -> None:
+        baseline = self.cohort.validate(self.cohort.candidate_args())
+        self.assertEqual(baseline.returncode, 0, baseline.stderr)
+        other = self.tmp / "other-checkout" / "scripts"
+        other.mkdir(parents=True)
+        source = self.cohort.papers / "scripts"
+        (other / "generate_index.py").write_bytes(
+            (source / "generate_index.py").read_bytes()
+        )
+        (other / "validate_invariants.py").write_bytes(
+            (source / "validate_invariants.py").read_bytes()
+            + b"# differs from the selected revision\n"
+        )
+        receipt = self.tmp / "authority-receipt.json"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(other / "validate_invariants.py"),
+                *self.cohort.candidate_args(receipt),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assert_rejected(result, "FAIL: 1 violation(s)")
+        self.assertIn(
+            "validator-authority-committed: running "
+            f"{(other / 'validate_invariants.py').resolve()} differs from papers "
+            "scripts/validate_invariants.py",
+            result.stderr,
+        )
+        self.assertFalse(receipt.exists())
+
     def test_uncommitted_card_edit_is_rejected_as_unbound_input(self) -> None:
         path = self.cohort.papers / "papers" / "beta.md"
         path.write_bytes(
