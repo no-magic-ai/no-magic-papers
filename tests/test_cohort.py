@@ -55,6 +55,7 @@ class CandidateReceiptTests(CohortTestCase):
             {
                 "INDEX.md",
                 "SCHEMA.md",
+                "data/papers.json",
                 "lessons/alpha.md",
                 "papers/alpha.md",
                 "papers/beta.md",
@@ -82,6 +83,7 @@ class CandidateReceiptTests(CohortTestCase):
         self.assertEqual(
             [o["script_slug"] for o in receipt["omissions"]], ["beta_vs_gamma"]
         )
+        self.assertIn("metadata-json-fresh", receipt["invariants"])
 
     def test_candidate_without_receipt_prints_receipt_on_stdout(self) -> None:
         result = self.cohort.validate(self.cohort.candidate_args())
@@ -391,6 +393,43 @@ class CrossRepoInvariantTests(CohortTestCase):
         self.assert_rejected(
             self.cohort.validate(self.cohort.candidate_args()),
             "index-fresh: INDEX.md bytes differ",
+        )
+
+    def test_stale_committed_metadata_json_is_rejected(self) -> None:
+        metadata = self.cohort.papers / "data" / "papers.json"
+        self.commit_change(
+            self.cohort.papers,
+            "data/papers.json",
+            metadata.read_bytes().replace(b"Alpha:", b"Omega:"),
+        )
+
+        self.assert_rejected(
+            self.cohort.validate(self.cohort.candidate_args()),
+            "metadata-json-fresh: data/papers.json bytes differ",
+        )
+
+    def test_card_change_without_metadata_json_regeneration_is_rejected(
+        self,
+    ) -> None:
+        alpha = self.cohort.papers / "papers" / "alpha.md"
+        self.commit_change(
+            self.cohort.papers,
+            "papers/alpha.md",
+            alpha.read_bytes().replace(b"  - fixture\n", b"  - retagged\n"),
+        )
+
+        self.assert_rejected(
+            self.cohort.validate(self.cohort.candidate_args()),
+            "metadata-json-fresh: data/papers.json bytes differ",
+        )
+
+    def test_missing_committed_metadata_json_is_rejected(self) -> None:
+        (self.cohort.papers / "data" / "papers.json").unlink()
+        self.cohort.commit(self.cohort.papers, "fixture: remove data/papers.json")
+
+        self.assert_rejected(
+            self.cohort.validate(self.cohort.candidate_args()),
+            "metadata-json-fresh: no-magic-papers:data/papers.json is not a regular file",
         )
 
     def test_committed_invalid_lesson_state_is_rejected(self) -> None:

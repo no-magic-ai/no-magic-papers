@@ -11,7 +11,7 @@
 5. Fill every required field in `SCHEMA.md`.
 6. Set exactly one primary theme and zero to two secondary themes from `THEMES.md`.
 7. Keep the card body concise: 800 words or less.
-8. Regenerate `INDEX.md` with `python3 scripts/generate_index.py --write`.
+8. Regenerate `INDEX.md` with `python3 scripts/generate_index.py --write` and `data/papers.json` with `python3 scripts/generate_index.py --format json --write`.
 
 ## Lessons
 
@@ -32,8 +32,8 @@ Reference the paper card by slug and any implementation by its explicit reposito
 - Scoped enhancement-phase technical merges ([issue #51](https://github.com/no-magic-ai/no-magic-papers/issues/51)): the canonical runner may mechanically merge a technical PR only after current design approval, separate independent verification, independent per-PR and coordinated-stack review, matching canonical and independent technical classifications of the actual head/base diff, every applicable current-head provider/CI gate, and no unresolved blocker. Technical scope is tooling, CI, deterministic link/metadata repairs and control/security plumbing that do not change scientific or math behavior. Reclassify and rerun stale gates when the head, base or either classification changes.
 - Paper cards, lessons, scientific/math behavior, research claims and other content require actual human approval naming the exact PR, current head SHA and content scope. Mixed, ambiguous or disputed classifications are human-gated. AI review, an agent-posted approval or stale approval is not human approval. Provider-required reviewers and branch protections remain binding.
 - This exception grants no automatic scientific review, factory activation, experimental spend, release/version authority or weakened acceptance/safety gate.
-- CI validates slug namespaces, the strict card and lesson schema (`scripts/generate_index.py --validate`), byte-exact `INDEX.md` freshness (`--check`), the validator tests and the cross-repo cohort (`scripts/validate_invariants.py`): implementation paths and ownership against the `no-magic` catalog and committed files, lesson lifecycle and declared `no-magic-viz` media. Pushes to `main` check the published cohort; PRs and other pushes check the exact head as a candidate cohort, which makes no publication claim. CI resolves the `no-magic` and `no-magic-viz` `main` commits once, checks out those exact commits with read-only credentials and keeps the cohort receipt as a workflow artifact.
-- `INDEX.md` is generated output. Hand edits are reverted.
+- CI validates slug namespaces, the strict card and lesson schema (`scripts/generate_index.py --validate`), byte-exact `INDEX.md` freshness (`--check`), byte-exact `data/papers.json` freshness (`--format json --check`), the validator tests and the cross-repo cohort (`scripts/validate_invariants.py`): implementation paths and ownership against the `no-magic` catalog and committed files, lesson lifecycle, declared `no-magic-viz` media and the committed `INDEX.md` and `data/papers.json` bytes. Pushes to `main` check the published cohort; PRs and other pushes check the exact head as a candidate cohort, which makes no publication claim. CI resolves the `no-magic` and `no-magic-viz` `main` commits once, checks out those exact commits with read-only credentials and keeps the cohort receipt as a workflow artifact.
+- `INDEX.md` and `data/papers.json` are generated output. Hand edits are reverted.
 - Commits use conventional commit format, imperative mood, and one logical change per commit.
 
 ## Contributor Pledge

@@ -41,6 +41,8 @@ jobs:
           python-version: "3.12"
       - name: verify generated index bytes
         run: python scripts/generate_index.py --check
+      - name: verify generated metadata JSON bytes
+        run: python scripts/generate_index.py --format json --check
 
   frontmatter-schema:
     name: frontmatter schema

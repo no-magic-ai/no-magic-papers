@@ -1,7 +1,8 @@
-"""generate_index.py rejects invalid card paths, media declarations and lesson states."""
+"""generate_index.py rejects invalid cards and lessons and keeps its generated files exact."""
 
 from __future__ import annotations
 
+import json
 import unittest
 
 from support import CohortTestCase, card, implementation
@@ -291,6 +292,104 @@ class IndexCheckTests(CohortTestCase):
         result = self.cohort.generate_index("--check")
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+class MetadataJsonTests(CohortTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.metadata = self.cohort.papers / "data" / "papers.json"
+        self.index = self.cohort.papers / "INDEX.md"
+
+    def assert_rejected_without_output(self, path: str, data: str) -> None:
+        metadata, index = self.metadata.read_bytes(), self.index.read_bytes()
+        self.cohort.write(self.cohort.papers, path, data.encode())
+
+        printed = self.cohort.generate_index("--format", "json")
+        written = self.cohort.generate_index("--format", "json", "--write")
+
+        for result in (printed, written):
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("card/lesson error(s)", result.stderr)
+            self.assertEqual(result.stdout, "")
+        self.assertEqual(self.metadata.read_bytes(), metadata)
+        self.assertEqual(self.index.read_bytes(), index)
+
+    def test_format_json_stdout_preserves_card_frontmatter_values(self) -> None:
+        alpha = card(
+            "alpha",
+            [
+                implementation("microalpha"),
+                implementation("alpha_vs_beta", "02-alignment", linked=False),
+            ],
+            lesson_status="drafted",
+            lesson_path="no-magic-papers/lessons/alpha.md",
+        ).replace("  - Ada Fixture\n", "  - Christopher Ré\n  - Łukasz Kaiser\n")
+        self.cohort.write(self.cohort.papers, "papers/alpha.md", alpha.encode())
+
+        result = self.cohort.generate_index("--format", "json")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(result.stdout)
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(
+            [paper["card_path"] for paper in document["papers"]],
+            ["papers/alpha.md", "papers/beta.md"],
+        )
+        fields = document["papers"][0]["frontmatter"]
+        self.assertEqual(fields["authors"], ["Christopher Ré", "Łukasz Kaiser"])
+        self.assertEqual((fields["year"], fields["doi"]), ("2024", None))
+        self.assertEqual(
+            fields["lesson"],
+            {"path": "no-magic-papers/lessons/alpha.md", "status": "drafted"},
+        )
+        self.assertEqual(
+            [(i["script_slug"], i["media_status"]) for i in fields["implementations"]],
+            [("microalpha", "linked"), ("alpha_vs_beta", "omitted")],
+        )
+        self.assertEqual(
+            fields["implementations"][1]["media_note"],
+            "Comparison script without a scene or preview.",
+        )
+
+    def test_format_json_check_stale_bytes_fails_without_mutation(self) -> None:
+        stale = self.metadata.read_bytes().replace(b"Alpha:", b"Omega:")
+        self.metadata.write_bytes(stale)
+
+        result = self.cohort.generate_index("--format", "json", "--check")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("data/papers.json is stale", result.stderr)
+        self.assertEqual(self.metadata.read_bytes(), stale)
+
+    def test_format_json_check_missing_file_fails_without_creating_it(self) -> None:
+        self.metadata.unlink()
+
+        result = self.cohort.generate_index("--format", "json", "--check")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("data/papers.json is stale", result.stderr)
+        self.assertFalse(self.metadata.exists())
+
+    def test_format_json_malformed_first_card_emits_nothing(self) -> None:
+        self.assert_rejected_without_output("papers/aardvark.md", "---\nslug: x\n")
+
+    def test_format_json_malformed_last_card_emits_nothing(self) -> None:
+        self.assert_rejected_without_output("papers/zeta.md", "no frontmatter\n")
+
+    def test_format_json_malformed_lesson_emits_nothing(self) -> None:
+        self.assert_rejected_without_output("lessons/alpha.md", "# Alpha\n")
+
+    def test_format_json_write_through_symlink_is_refused(self) -> None:
+        outside = self.tmp / "outside.json"
+        outside.write_bytes(b"untouched\n")
+        self.metadata.unlink()
+        self.metadata.symlink_to(outside)
+
+        result = self.cohort.generate_index("--format", "json", "--write")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("is a symlink", result.stderr)
+        self.assertEqual(outside.read_bytes(), b"untouched\n")
 
 
 if __name__ == "__main__":

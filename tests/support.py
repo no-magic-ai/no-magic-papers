@@ -223,6 +223,11 @@ class Cohort:
             self.papers, generate_index.read_file(self.papers)
         )
         (self.papers / "INDEX.md").write_bytes(generate_index.render(repository.cards))
+        self.write(
+            self.papers,
+            generate_index.METADATA_PATH,
+            generate_index.render_json(repository.cards),
+        )
 
     def commit(self, root: Path, message: str) -> str:
         git(root, "add", "-A")

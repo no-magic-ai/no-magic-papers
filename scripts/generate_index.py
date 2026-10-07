@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and validate INDEX.md from paper-card frontmatter.
+"""Generate and validate INDEX.md and data/papers.json from paper-card frontmatter.
 
 This module is the single frontmatter parser and card/lesson validator for
 no-magic-papers; scripts/validate_invariants.py imports it rather than parsing
@@ -16,11 +16,17 @@ Usage:
     python scripts/generate_index.py --write     # regenerate INDEX.md
     python scripts/generate_index.py --check     # exit 1 unless INDEX.md bytes match
     python scripts/generate_index.py --validate  # validate cards and lessons only
+    python scripts/generate_index.py --format json          # print metadata JSON
+    python scripts/generate_index.py --format json --write  # regenerate data/papers.json
+    python scripts/generate_index.py --format json --check  # exit 1 unless its bytes match
+
+Every mode validates all cards and lessons before producing any output.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections.abc import Callable
@@ -103,6 +109,9 @@ LESSON_WORD_LIMIT = 1500
 IMPLEMENTATION_REPO = "no-magic"
 MEDIA_REPO = "no-magic-viz"
 TIER_DIRS = ("01-foundations", "02-alignment", "03-systems", "04-agents")
+INDEX_PATH = "INDEX.md"
+METADATA_PATH = "data/papers.json"
+METADATA_SCHEMA_VERSION = 1
 
 Scalar = str | None
 Record = dict[str, Scalar]
@@ -162,6 +171,7 @@ class Card:
     lesson: Lesson
     implementations: tuple[Implementation, ...]
     dependencies: tuple[str, ...]
+    frontmatter: Frontmatter
 
 
 @dataclass(frozen=True)
@@ -587,6 +597,7 @@ def check_card(relative: str, raw: bytes) -> Card | list[str]:
         lesson=lesson,
         implementations=tuple(implementations),
         dependencies=tuple(dependencies),
+        frontmatter=fields,
     )
 
 
@@ -727,8 +738,41 @@ def render(cards: tuple[Card, ...]) -> bytes:
     return "\n".join(lines).encode("utf-8")
 
 
+def render_json(cards: tuple[Card, ...]) -> bytes:
+    """Serialize every card's validated frontmatter, sorted by card path.
+
+    The JSON is a derivative of the cards, not a second metadata authority:
+    values are exactly the parsed frontmatter (strings, null, lists and
+    mappings; never numbers or booleans) and nothing is inferred from bodies.
+    """
+    document = {
+        "schema_version": METADATA_SCHEMA_VERSION,
+        "papers": [
+            {"card_path": card.path.as_posix(), "frontmatter": card.frontmatter}
+            for card in sorted(cards, key=lambda card: card.path.as_posix())
+        ],
+    }
+    text = json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True)
+    return f"{text}\n".encode()
+
+
+def output_file(root: Path, relative: str) -> Path:
+    """Return root/relative, refusing symlinked components and non-regular files."""
+    current = root
+    for part in relative.split("/"):
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"{relative}: {part!r} is a symlink")
+    if current.exists() and not current.is_file():
+        raise ValueError(f"{relative} is not a regular file")
+    return current
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate and validate INDEX.md.")
+    parser = argparse.ArgumentParser(
+        description="Generate and validate INDEX.md or data/papers.json."
+    )
+    parser.add_argument("--format", choices=("markdown", "json"), default="markdown")
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--validate", action="store_true")
@@ -741,20 +785,38 @@ def main() -> int:
         for error in exc.errors:
             print(f"  - {error}", file=sys.stderr)
         return 1
-    output = render(repository.cards)
-    index_path = root / "INDEX.md"
-    if args.write:
-        index_path.write_bytes(output)
+    if args.format == "json":
+        output, relative, write_flags = (
+            render_json(repository.cards),
+            METADATA_PATH,
+            "--format json --write",
+        )
+        try:
+            target = output_file(root, relative)
+            if args.write:
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes(output)
+        except (OSError, ValueError) as exc:
+            print(f"FAIL: {exc}", file=sys.stderr)
+            return 1
+    else:
+        output, relative, write_flags = render(repository.cards), INDEX_PATH, "--write"
+        target = root / relative
+        if args.write:
+            target.write_bytes(output)
     if args.check:
-        current = index_path.read_bytes() if index_path.is_file() else None
+        current = target.read_bytes() if target.is_file() else None
         if current != output:
             print(
-                "INDEX.md is stale; run scripts/generate_index.py --write",
+                f"{relative} is stale; run scripts/generate_index.py {write_flags}",
                 file=sys.stderr,
             )
             return 1
     if not args.write and not args.check and not args.validate:
-        sys.stdout.write(output.decode("utf-8"))
+        if args.format == "json":
+            sys.stdout.buffer.write(output)
+        else:
+            sys.stdout.write(output.decode("utf-8"))
     return 0
 
 
