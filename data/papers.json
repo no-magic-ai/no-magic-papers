@@ -743,8 +743,8 @@
           }
         ],
         "lesson": {
-          "path": null,
-          "status": "none"
+          "path": "no-magic-papers/lessons/gpt-1.md",
+          "status": "published"
         },
         "routing": {
           "batch_label": "v3-backfill-foundations",
