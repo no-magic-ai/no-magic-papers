@@ -6,11 +6,11 @@ Implementation: `no-magic/03-systems/microrope.py`
 
 ## Paper summary
 
-Su et al. (2021) encode position by rotating queries and keys instead of adding a position vector to the input. Split a `d`-dimensional query or key into `d/2` pairs. At position `m`, pair `i` is rotated by the angle `m·θ_i`, with `θ_i = 10000^(−2(i−1)/d)` for `i = 1, …, d/2`; the full operation is a block-diagonal orthogonal matrix `R_(Θ,m)` (Eq. 15). Applied to attention (Eq. 16):
+Su et al. (2021) encode position by rotating queries and keys instead of adding a position vector to the input. Split a `d`-dimensional query or key into `d/2` pairs. At position `m`, pair `i` is rotated by the angle `m·θ_i`, with `θ_i = 10000^(−2(i−1)/d)` for `i = 1, …, d/2`; the full operation is a block-diagonal orthogonal matrix `R_(Θ,m)` (Eq. 15). Applied to attention:
 
-`q_mᵀ k_n = (R_(Θ,m) W_q x_m)ᵀ (R_(Θ,n) W_k x_n) = x_mᵀ W_q R_(Θ,n−m) W_k x_n`,
+`q_mᵀ k_n = (R_(Θ,m) W_q x_m)ᵀ (R_(Θ,n) W_k x_n) = x_mᵀ W_qᵀ R_(Θ,m)ᵀ R_(Θ,n) W_k x_n = x_mᵀ W_qᵀ R_(Θ,n−m) W_k x_n`,
 
-because `R_(Θ,m)ᵀ R_(Θ,n) = R_(Θ,n−m)`. Each token is rotated by its absolute position, yet the score depends only on the offset `n − m`. The rotation preserves vector norms, adds no parameters, and can be applied with element-wise multiplications instead of a matrix product. The paper also shows that, with this choice of `θ_i`, an upper bound on the score decays as the relative distance grows, and that RoPE can be combined with linear attention. The resulting RoFormer is evaluated on translation, language-model pre-training and long Chinese text classification; the authors note that they lack a full explanation for its faster convergence and its gains on long texts.
+because `R_(Θ,m)ᵀ R_(Θ,n) = R_(Θ,n−m)`. The paper's printed Eq. 16 writes `W_q` without the transpose; expanding the product shows the transpose belongs there, and the two forms agree only when `W_q` is symmetric. Each token is rotated by its absolute position, yet the score depends only on the offset `n − m`. The rotation preserves vector norms, adds no parameters, and can be applied with element-wise multiplications instead of a matrix product. The paper also shows that, with this choice of `θ_i`, an upper bound on the score decays as the relative distance grows, and that RoPE can be combined with linear attention. The resulting RoFormer is evaluated on translation, language-model pre-training and long Chinese text classification; the authors note that they lack a full explanation for its faster convergence and its gains on long texts.
 
 ## Intuition
 
@@ -31,7 +31,7 @@ Relative dependence is a property of each score, not a guarantee about lengths a
 ## Exercises
 
 1. Rotate the unit vector `(1, 0)` in the first pair to position 1. Predict the result. (`(cos 1, sin 1) ≈ (0.540, 0.841)`.)
-2. Prove `R(m)ᵀ R(n) = R(n − m)` for a single 2×2 rotation using the angle-difference identities, then confirm numerically that the scores for positions (5, 8) and (100, 103) agree.
+2. Prove `R(m)ᵀ R(n) = R(n − m)` for a single 2×2 rotation using the angle-difference identities, then confirm numerically that the scores for positions (5, 8) and (100, 103) agree. With a non-symmetric 2×2 `W_q`, also check that `x_mᵀ W_qᵀ R(n − m) W_k x_n` matches the rotated score and `x_mᵀ W_q R(n − m) W_k x_n` does not.
 3. Show that `apply_rope` preserves the vector's length for any position, and explain why that matters for attention scores.
 4. For `s = 4`, compute the ratio between standard and NTK-scaled frequencies for each pair. (They run from 1.0 for the first pair to 4.0 for the last.) Explain why the last pair is slowed by exactly `s`.
 5. Add RoPE to `microgpt.py`: remove `wpe`, rotate each head's query and key by position inside `gpt_forward`, and compare the parameter count (4,192 − 256 = 3,936) and final loss with the learned-position version.
