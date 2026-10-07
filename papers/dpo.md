@@ -44,8 +44,8 @@ implementations:
     preview_path: previews/microdpo.gif
     media_note: null
 lesson:
-  path: null
-  status: none
+  path: no-magic-papers/lessons/dpo.md
+  status: published
 dependencies_on_other_papers: []
 ---
 

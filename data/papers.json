@@ -495,8 +495,8 @@
           }
         ],
         "lesson": {
-          "path": null,
-          "status": "none"
+          "path": "no-magic-papers/lessons/dpo.md",
+          "status": "published"
         },
         "routing": {
           "batch_label": "v3-backfill-alignment",
@@ -1253,8 +1253,8 @@
           }
         ],
         "lesson": {
-          "path": null,
-          "status": "none"
+          "path": "no-magic-papers/lessons/lora.md",
+          "status": "published"
         },
         "routing": {
           "batch_label": "v3-backfill-alignment",
