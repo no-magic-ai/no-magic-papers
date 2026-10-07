@@ -16,7 +16,7 @@ because `R_(Θ,m)ᵀ R_(Θ,n) = R_(Θ,n−m)`. The paper's printed Eq. 16 writes
 
 Think of each pair of dimensions as a hand on a clock. A token at position `m` turns every hand by `m` times that hand's speed. When a query and a key meet in a dot product, only the angle between their hands matters, and that angle is the speed times the distance between the tokens. Fast hands (the first pairs) distinguish nearby positions; slow hands (the last pairs) keep turning slowly enough to separate distant ones.
 
-Relative dependence is a property of each score, not a guarantee about lengths a model never saw. A trained model has only experienced the angle combinations that occur within its training length; beyond it, the fast pairs wrap around and the slow pairs reach angles never seen. Context extension methods such as NTK-aware scaling change the frequencies to keep angles within familiar ranges.
+Relative dependence is a property of each score, not a guarantee about lengths a model never saw. A trained model has only experienced the angle combinations that occur within its training length. The fast pairs complete many full turns even within that length, so beyond it they mostly revisit angles already seen; the slow pairs, which turn less than once over the training length, reach angles never seen. Context extension methods such as NTK-aware scaling rescale frequencies, mostly the slow pairs, to reduce that mismatch; whether the extended model works still has to be measured.
 
 ## Code walkthrough
 
@@ -26,7 +26,7 @@ Relative dependence is a property of each score, not a guarantee about lengths a
 
 `demonstrate_length_extrapolation` compares scores beyond the 64-entry learned position table: the learned table simply has no entry there, while sinusoidal, RoPE and NTK-scaled RoPE scores can still be computed. These are untrained scores, so they show what each encoding can represent, not how a trained model behaves at those lengths.
 
-`ntk_scaled_frequencies` raises the base to `10000 · s^(d/(d−2))` for a length factor `s`. Read the effect carefully: for `s = 4` and `d = 16` the first pair's speed is unchanged and the last pair is slowed by exactly 4×, with the pairs in between slowed by 1.22× to 3.28×. The source comment says high frequencies "get slowed down more than low frequencies", and the demo prints "Higher scale factors slow all frequencies proportionally"; both descriptions are inaccurate — the lowest frequencies change most and the highest not at all.
+`ntk_scaled_frequencies` raises the base to `10000 · s^(d/(d−2))` for a length factor `s`. Read the effect carefully: for `s = 4` and `d = 16` the first pair's speed is unchanged and the last pair is slowed by exactly 4×, with the pairs in between slowed by 1.22× to 3.28×. The script's own explanations put both the problem and the fix in the high-frequency pairs, and they are incorrect: the comments that long contexts fail because high-frequency pairs alias and that NTK scaling slows them more, the docstring "NTK scaling fixes this", and the printed lines "high-freq pairs rotate too fast", "NTK scaling: slows high-freq rotations", "Higher scale factors slow all frequencies proportionally" and Key Takeaway 4, "prevent high-frequency aliasing". The highest frequency is not changed at all and the lowest changes most.
 
 ## Exercises
 
