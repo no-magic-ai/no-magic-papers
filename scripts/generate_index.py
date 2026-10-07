@@ -791,18 +791,19 @@ def main() -> int:
             METADATA_PATH,
             "--format json --write",
         )
+        try:
+            target = output_file(root, relative)
+            if args.write:
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes(output)
+        except (OSError, ValueError) as exc:
+            print(f"FAIL: {exc}", file=sys.stderr)
+            return 1
     else:
         output, relative, write_flags = render(repository.cards), INDEX_PATH, "--write"
-    try:
-        target = (
-            output_file(root, relative) if args.format == "json" else root / relative
-        )
+        target = root / relative
         if args.write:
-            target.parent.mkdir(exist_ok=True)
             target.write_bytes(output)
-    except (OSError, ValueError) as exc:
-        print(f"FAIL: {exc}", file=sys.stderr)
-        return 1
     if args.check:
         current = target.read_bytes() if target.is_file() else None
         if current != output:
