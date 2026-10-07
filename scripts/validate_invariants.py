@@ -22,6 +22,10 @@ It enforces SOP §7.3 invariants 1-3 plus path, lifecycle and media rules:
   only for catalog teaching_kind `comparison`. This is not render, playback or
   conceptual-fidelity certification.
 
+  Generated files: committed INDEX.md and data/papers.json must equal the
+  bytes scripts/generate_index.py renders from the committed cards
+  (index-fresh, metadata-json-fresh).
+
 Cohorts:
   published (default)  each selected commit must be an ancestor of the public
                        repository's main, resolved by unauthenticated read-only
@@ -91,6 +95,7 @@ INVARIANTS = (
     "media-omission-comparison-only",
     "media-assets",
     "index-fresh",
+    "metadata-json-fresh",
 )
 
 
@@ -516,6 +521,15 @@ def validate_cohort(repos: dict[str, Repository]) -> Findings:
             )
     except ValueError as exc:
         findings.errors.append(f"index-fresh: {exc}")
+    try:
+        metadata = papers.read(generate_index.METADATA_PATH)
+    except ValueError as exc:
+        findings.errors.append(f"metadata-json-fresh: {exc}")
+    else:
+        if metadata != generate_index.render_json(repository.cards):
+            findings.errors.append(
+                f"metadata-json-fresh: {generate_index.METADATA_PATH} bytes differ from scripts/generate_index.py --format json output"
+            )
     check_version(core, findings)
     catalog = load_catalog(core, findings)
     try:
