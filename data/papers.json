@@ -1071,8 +1071,8 @@
           }
         ],
         "lesson": {
-          "path": null,
-          "status": "none"
+          "path": "no-magic-papers/lessons/kv-cache.md",
+          "status": "published"
         },
         "routing": {
           "batch_label": "v3-backfill-systems",
@@ -2339,8 +2339,8 @@
           }
         ],
         "lesson": {
-          "path": null,
-          "status": "none"
+          "path": "no-magic-papers/lessons/rope.md",
+          "status": "published"
         },
         "routing": {
           "batch_label": "v3-backfill-systems",
