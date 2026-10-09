@@ -48,8 +48,8 @@ implementations:
     preview_path: previews/microkv.gif
     media_note: null
 lesson:
-  path: null
-  status: none
+  path: no-magic-papers/lessons/kv-cache.md
+  status: published
 dependencies_on_other_papers:
   - slug: transformer
 ---
