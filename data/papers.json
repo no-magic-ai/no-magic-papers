@@ -891,6 +891,67 @@
       }
     },
     {
+      "card_path": "papers/green-list-watermark.md",
+      "frontmatter": {
+        "arxiv_id": "2301.10226",
+        "authors": [
+          "John Kirchenbauer",
+          "Jonas Geiping",
+          "Yuxin Wen",
+          "Jonathan Katz",
+          "Ian Miers",
+          "Tom Goldstein"
+        ],
+        "dependencies_on_other_papers": [],
+        "discovered_date": "2026-10-10",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "03-systems/microwatermark.py",
+            "preview_path": "previews/microwatermark.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microwatermark.py",
+            "script_slug": "microwatermark"
+          }
+        ],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "03-systems/microwatermark.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microwatermark",
+          "target_tier": "03-systems"
+        },
+        "slug": "green-list-watermark",
+        "status": "implemented",
+        "tags": [
+          "watermarking",
+          "logit-bias",
+          "hypothesis-testing",
+          "decoding"
+        ],
+        "themes": {
+          "primary": "safety-robustness",
+          "secondary": []
+        },
+        "title": "A Watermark for Large Language Models",
+        "url": "https://arxiv.org/abs/2301.10226",
+        "venue": "ICML",
+        "year": "2023"
+      }
+    },
+    {
       "card_path": "papers/grpo.md",
       "frontmatter": {
         "arxiv_id": "2402.03300",
