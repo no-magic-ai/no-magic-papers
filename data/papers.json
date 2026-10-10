@@ -2385,6 +2385,67 @@
       }
     },
     {
+      "card_path": "papers/rome.md",
+      "frontmatter": {
+        "arxiv_id": "2202.05262",
+        "authors": [
+          "Kevin Meng",
+          "David Bau",
+          "Alex Andonian",
+          "Yonatan Belinkov"
+        ],
+        "dependencies_on_other_papers": [],
+        "discovered_date": "2026-10-10",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "02-alignment/microrome.py",
+            "preview_path": "previews/microrome.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microrome.py",
+            "script_slug": "microrome"
+          }
+        ],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "02-alignment/microrome.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microrome",
+          "target_tier": "02-alignment"
+        },
+        "slug": "rome",
+        "status": "implemented",
+        "tags": [
+          "knowledge-editing",
+          "causal-tracing",
+          "rank-one-update",
+          "associative-memory"
+        ],
+        "themes": {
+          "primary": "interpretability",
+          "secondary": [
+            "alignment"
+          ]
+        },
+        "title": "Locating and Editing Factual Associations in GPT",
+        "url": "https://arxiv.org/abs/2202.05262",
+        "venue": "NeurIPS",
+        "year": "2022"
+      }
+    },
+    {
       "card_path": "papers/roofline.md",
       "frontmatter": {
         "arxiv_id": null,
