@@ -465,6 +465,64 @@
       }
     },
     {
+      "card_path": "papers/distillation.md",
+      "frontmatter": {
+        "arxiv_id": "1503.02531",
+        "authors": [
+          "Geoffrey Hinton",
+          "Oriol Vinyals",
+          "Jeff Dean"
+        ],
+        "dependencies_on_other_papers": [],
+        "discovered_date": "2026-10-09",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "02-alignment/microdistill.py",
+            "preview_path": "previews/microdistill.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microdistill.py",
+            "script_slug": "microdistill"
+          }
+        ],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "02-alignment/microdistill.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microdistill",
+          "target_tier": "02-alignment"
+        },
+        "slug": "distillation",
+        "status": "implemented",
+        "tags": [
+          "knowledge-distillation",
+          "soft-targets",
+          "temperature",
+          "model-compression"
+        ],
+        "themes": {
+          "primary": "efficient-inference",
+          "secondary": []
+        },
+        "title": "Distilling the Knowledge in a Neural Network",
+        "url": "https://arxiv.org/abs/1503.02531",
+        "venue": "arXiv",
+        "year": "2015"
+      }
+    },
+    {
       "card_path": "papers/dpo.md",
       "frontmatter": {
         "arxiv_id": "2305.18290",
@@ -1030,6 +1088,85 @@
         "url": "https://arxiv.org/abs/1603.09320",
         "venue": "arXiv",
         "year": "2016"
+      }
+    },
+    {
+      "card_path": "papers/instructgpt.md",
+      "frontmatter": {
+        "arxiv_id": "2203.02155",
+        "authors": [
+          "Long Ouyang",
+          "Jeff Wu",
+          "Xu Jiang",
+          "Diogo Almeida",
+          "Carroll L. Wainwright",
+          "Pamela Mishkin",
+          "Chong Zhang",
+          "Sandhini Agarwal",
+          "Katarina Slama",
+          "Alex Ray",
+          "John Schulman",
+          "Jacob Hilton",
+          "Fraser Kelton",
+          "Luke Miller",
+          "Maddie Simens",
+          "Amanda Askell",
+          "Peter Welinder",
+          "Paul Christiano",
+          "Jan Leike",
+          "Ryan Lowe"
+        ],
+        "dependencies_on_other_papers": [
+          {
+            "slug": "ppo"
+          }
+        ],
+        "discovered_date": "2026-10-09",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "02-alignment/microsft.py",
+            "preview_path": "previews/microsft.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microsft.py",
+            "script_slug": "microsft"
+          }
+        ],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "02-alignment/microsft.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microsft",
+          "target_tier": "02-alignment"
+        },
+        "slug": "instructgpt",
+        "status": "implemented",
+        "tags": [
+          "supervised-fine-tuning",
+          "instruction-following",
+          "rlhf",
+          "demonstrations"
+        ],
+        "themes": {
+          "primary": "alignment",
+          "secondary": []
+        },
+        "title": "Training language models to follow instructions with human feedback",
+        "url": "https://arxiv.org/abs/2203.02155",
+        "venue": "NeurIPS",
+        "year": "2022"
       }
     },
     {
