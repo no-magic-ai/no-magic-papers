@@ -361,6 +361,57 @@
       }
     },
     {
+      "card_path": "papers/chain-of-thought.md",
+      "frontmatter": {
+        "arxiv_id": "2201.11903",
+        "authors": [
+          "Jason Wei",
+          "Xuezhi Wang",
+          "Dale Schuurmans",
+          "Maarten Bosma",
+          "Brian Ichter",
+          "Fei Xia",
+          "Ed H. Chi",
+          "Quoc V. Le",
+          "Denny Zhou"
+        ],
+        "dependencies_on_other_papers": [],
+        "discovered_date": "2026-10-10",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "reference-only",
+          "review_date": null,
+          "target_path": null,
+          "target_repo": null,
+          "target_script_slug": null,
+          "target_tier": null
+        },
+        "slug": "chain-of-thought",
+        "status": "summarized",
+        "tags": [
+          "chain-of-thought",
+          "prompting",
+          "in-context-learning",
+          "emergence"
+        ],
+        "themes": {
+          "primary": "reasoning",
+          "secondary": []
+        },
+        "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+        "url": "https://arxiv.org/abs/2201.11903",
+        "venue": "NeurIPS",
+        "year": "2022"
+      }
+    },
+    {
       "card_path": "papers/ddpm.md",
       "frontmatter": {
         "arxiv_id": "2006.11239",
@@ -2627,6 +2678,73 @@
         "url": "https://arxiv.org/abs/2104.09864",
         "venue": "arXiv",
         "year": "2021"
+      }
+    },
+    {
+      "card_path": "papers/self-consistency.md",
+      "frontmatter": {
+        "arxiv_id": "2203.11171",
+        "authors": [
+          "Xuezhi Wang",
+          "Jason Wei",
+          "Dale Schuurmans",
+          "Quoc Le",
+          "Ed H. Chi",
+          "Sharan Narang",
+          "Aakanksha Chowdhery",
+          "Denny Zhou"
+        ],
+        "dependencies_on_other_papers": [
+          {
+            "slug": "chain-of-thought"
+          }
+        ],
+        "discovered_date": "2026-10-10",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "03-systems/microcot.py",
+            "preview_path": "previews/microcot.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microcot.py",
+            "script_slug": "microcot"
+          }
+        ],
+        "lesson": {
+          "path": null,
+          "status": "none"
+        },
+        "routing": {
+          "batch_label": "t3-gap-fill",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "03-systems/microcot.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microcot",
+          "target_tier": "03-systems"
+        },
+        "slug": "self-consistency",
+        "status": "implemented",
+        "tags": [
+          "chain-of-thought",
+          "self-consistency",
+          "decoding",
+          "majority-vote"
+        ],
+        "themes": {
+          "primary": "reasoning",
+          "secondary": []
+        },
+        "title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models",
+        "url": "https://arxiv.org/abs/2203.11171",
+        "venue": "ICLR",
+        "year": "2023"
       }
     },
     {
