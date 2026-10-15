@@ -70,6 +70,62 @@
       }
     },
     {
+      "card_path": "papers/adding-error-bars-to-evals.md",
+      "frontmatter": {
+        "arxiv_id": "2411.00640",
+        "authors": [
+          "Evan Miller"
+        ],
+        "dependencies_on_other_papers": [],
+        "discovered_date": "2026-10-15",
+        "discovered_via": "maintainer",
+        "doi": null,
+        "implementations": [
+          {
+            "commit": null,
+            "media_note": null,
+            "media_repo": "no-magic-viz",
+            "media_status": "linked",
+            "path": "01-foundations/microerrorbars.py",
+            "preview_path": "previews/microerrorbars.gif",
+            "release": null,
+            "repo": "no-magic",
+            "scene_path": "scenes/scene_microerrorbars.py",
+            "script_slug": "microerrorbars"
+          }
+        ],
+        "lesson": {
+          "path": "no-magic-papers/lessons/adding-error-bars-to-evals.md",
+          "status": "planned"
+        },
+        "routing": {
+          "batch_label": "evaluation-seed",
+          "decision": "backlog-implement",
+          "review_date": null,
+          "target_path": "01-foundations/microerrorbars.py",
+          "target_repo": "no-magic",
+          "target_script_slug": "microerrorbars",
+          "target_tier": "01-foundations"
+        },
+        "slug": "adding-error-bars-to-evals",
+        "status": "implemented",
+        "tags": [
+          "error-bars",
+          "confidence-intervals",
+          "paired-differences",
+          "power-analysis"
+        ],
+        "themes": {
+          "primary": "evaluation",
+          "secondary": []
+        },
+        "title": "Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations",
+        "url": "https://arxiv.org/abs/2411.00640",
+        "venue": "arXiv",
+        "year": "2024"
+      }
+    },
+    {
       "card_path": "papers/alpha-beta.md",
       "frontmatter": {
         "arxiv_id": null,
