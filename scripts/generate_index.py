@@ -46,6 +46,7 @@ THEMES = (
     "safety-robustness",
     "agents",
     "multimodal",
+    "evaluation",
 )
 STATUSES = {
     "triaged",
