@@ -40,7 +40,7 @@ implementations:
     media_note: null
 lesson:
   path: no-magic-papers/lessons/adding-error-bars-to-evals.md
-  status: planned
+  status: published
 dependencies_on_other_papers: []
 ---
 
