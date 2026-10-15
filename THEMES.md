@@ -16,3 +16,4 @@ Every paper card has one primary theme and zero to two secondary themes. These t
 | `safety-robustness` | Jailbreaks, watermarking, red-teaming, bias, adversarial robustness, and methods that measure or improve safe behavior. | watermarking, jailbreak defense |
 | `agents` | Planning, tool use, memory-augmented agents, multi-agent coordination, and computer-use agents. | ReAct, MCTS agents |
 | `multimodal` | Vision-language, audio, video, and cross-modal fusion methods. | CLIP-style models, VLMs |
+| `evaluation` | How models are measured: eval statistics, error bars, paired comparisons, power and benchmark methodology. | Adding Error Bars to Evals (Miller 2024) |
